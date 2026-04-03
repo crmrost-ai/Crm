@@ -1,132 +1,207 @@
-# CLAUDE.md — CRM Project
+# CLAUDE.md — Теремка CRM (Типография Рост)
 
-## Project Overview
+## Что это такое
 
-This is a Customer Relationship Management (CRM) system. The goal is to manage clients, deals, tasks, communications, and sales pipelines in a unified platform.
+**Теремка** — внутренняя система управления заказами для типографии «Рост».
 
-## Architecture
+Главная идея: **прокладка между менеджерами и цехами-подрядчиками**.
+
+```
+Клиент → [Источник заявки] → Менеджер → [ТЕРЕМКА] → Цех (подрядчик)
+```
+
+Система:
+- собирает заявки из разных каналов в одном месте
+- автоматически считает стоимость простых заказов (калькуляторы)
+- передаёт задания в нужный цех
+- отслеживает статус выполнения
+
+---
+
+## Роли пользователей
+
+| Роль | Описание |
+|---|---|
+| **Менеджер** | Принимает заявки, общается с клиентами, контролирует заказы |
+| **Подрядчик (цех)** | Получает задания, меняет статус, загружает результат |
+| **Администратор** | Управляет справочниками, ценами, пользователями |
+
+---
+
+## Источники заявок (Phase 1)
+
+- Телефон / WhatsApp → менеджер вводит вручную
+- Email → менеджер вводит вручную (или автоимпорт в будущем)
+- Сайт типографии → форма заказа, интегрированная с Теремкой
+- Telegram менеджера → заявки пересылаются/вводятся в систему
+
+---
+
+## Калькуляторы (Phase 1)
+
+Автоматический расчёт стоимости по параметрам:
+
+### 1. Визитки / Листовки
+Параметры: формат (90x50, A6, A5, A4), тираж, бумага (мелованная/офсет), плотность (150/300/350г), односторонние/двусторонние, ламинация (нет/мат/глянец)
+
+### 2. Баннеры / Таблички
+Параметры: ширина × высота (метры), материал (банерная ткань, ПВХ, оргстекло), тип отделки (люверсы, карман, без), срочность
+
+### 3. Упаковка
+Параметры: тип (коробка, пакет), размер (Ш×Г×В), тираж, материал, печать (без/1 цвет/полноцвет)
+
+### 4. Сувениры
+Параметры: тип изделия (кружка, футболка, ручка, кепка и др.), количество, способ нанесения (печать/вышивка/гравировка), количество цветов
+
+---
+
+## Жизненный цикл заказа
+
+```
+Новая заявка
+    ↓
+Расчёт (авто-калькулятор или менеджер вручную)
+    ↓
+Согласование с клиентом (цена подтверждена)
+    ↓
+Передача в цех (подрядчику)
+    ↓
+В производстве
+    ↓
+Готово / Выдано клиенту
+    ↓
+Закрыт
+```
+
+---
+
+## Архитектура проекта
 
 ```
 Crm/
-├── backend/          # Server-side application (API)
-├── frontend/         # Client-side application (UI)
-├── database/         # Migrations, seeds, schema definitions
-├── docs/             # Project documentation
-└── CLAUDE.md         # This file
+├── backend/              # API-сервер (Node.js + Express)
+│   ├── src/
+│   │   ├── routes/       # API эндпоинты
+│   │   ├── models/       # Модели данных (Prisma ORM)
+│   │   ├── services/     # Бизнес-логика (калькуляторы, статусы)
+│   │   ├── middleware/   # Auth, валидация
+│   │   └── index.js
+│   ├── prisma/
+│   │   └── schema.prisma # Схема БД
+│   └── package.json
+│
+├── frontend/             # Веб-интерфейс (Next.js + React)
+│   ├── app/
+│   │   ├── dashboard/    # Главная менеджера
+│   │   ├── orders/       # Список и форма заказов
+│   │   ├── calculator/   # Калькуляторы
+│   │   ├── contractors/  # Кабинет цехов
+│   │   └── admin/        # Администрирование
+│   └── package.json
+│
+├── database/
+│   └── migrations/       # История миграций БД
+│
+├── docs/                 # Документация
+└── CLAUDE.md
 ```
 
-## Tech Stack
+---
 
-> Update this section once the stack is decided.
+## Технологический стек
 
-- **Backend**: (e.g. Node.js/Express, Django, FastAPI, Laravel)
-- **Frontend**: (e.g. React, Vue, Next.js)
-- **Database**: (e.g. PostgreSQL, MySQL, MongoDB)
-- **Auth**: (e.g. JWT, OAuth2, session-based)
-- **Cache**: (e.g. Redis)
-- **Queue**: (e.g. BullMQ, Celery, RabbitMQ)
+| Слой | Технология | Зачем |
+|---|---|---|
+| Backend | Node.js + Express | Простой, быстрый API |
+| ORM | Prisma | Удобная работа с БД без SQL |
+| База данных | PostgreSQL | Надёжная реляционная БД |
+| Frontend | Next.js 14 (React) | Современный UI, SSR |
+| UI-компоненты | Shadcn/ui + Tailwind | Готовые красивые компоненты |
+| Auth | JWT + bcrypt | Безопасная авторизация |
+| Хостинг | VPS (Timeweb / REG.RU) | Российский хостинг, SSD |
+| Деплой | Docker + docker-compose | Простое разворачивание |
 
-## Core CRM Modules
+---
 
-| Module | Description |
-|---|---|
-| **Contacts** | Leads, clients, companies — the address book |
-| **Deals / Pipeline** | Sales stages from lead to closed deal |
-| **Tasks** | To-dos and follow-ups linked to contacts/deals |
-| **Activities** | Calls, emails, meetings — interaction history |
-| **Users & Roles** | Team members, access control (RBAC) |
-| **Reports** | Sales stats, conversion funnels, dashboards |
-| **Notifications** | In-app and email alerts |
-| **Integrations** | Email sync, telephony, messengers, webhooks |
-
-## Data Model (Core Entities)
+## Основные сущности БД
 
 ```
-Contact
-  id, first_name, last_name, email, phone, company_id,
-  owner_id (User), source, status, tags[], created_at
+Order (Заказ)
+  id, number, status, source, client_id, manager_id,
+  contractor_id, product_type, params (JSON),
+  price, comment, created_at, updated_at
 
-Company
-  id, name, industry, website, address, contacts[]
+Client (Клиент)
+  id, name, phone, email, company, created_at
 
-Deal
-  id, title, value, currency, stage, probability,
-  contact_id, company_id, owner_id, close_date, created_at
+User (Пользователь)
+  id, name, email, password_hash, role (manager|contractor|admin)
 
-Activity
-  id, type (call|email|meeting|note), deal_id, contact_id,
-  user_id, description, scheduled_at, completed_at
+Contractor (Подрядчик / Цех)
+  id, name, specialization[], contact_name, phone, telegram
 
-Task
-  id, title, due_date, priority, status,
-  assignee_id, contact_id, deal_id
-
-User
-  id, name, email, role, team_id, created_at
+PriceRule (Правило ценообразования)
+  id, product_type, params_json, price_per_unit, updated_at
 ```
 
-## Development Guidelines
+---
 
-### Git Workflow
-- Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
-- Commits: use [Conventional Commits](https://www.conventionalcommits.org/) — `feat:`, `fix:`, `chore:`, `docs:`
-- PRs require review before merging to `main`
+## Роадмап разработки
 
-### Code Style
-- Keep functions small and focused (single responsibility)
-- No magic numbers — use named constants
-- Validate all user input at the API boundary
-- Never store passwords in plain text (use bcrypt or argon2)
+### Этап 1 — Фундамент (сейчас)
+- [x] CLAUDE.md — документация проекта
+- [ ] Схема БД (Prisma)
+- [ ] Backend: авторизация, базовые CRUD
+- [ ] Frontend: логин, дашборд менеджера
 
-### Security
-- Sanitize all inputs to prevent SQL injection and XSS
-- Use RBAC: users can only access data they own or are assigned to
-- Log all authentication events (login, logout, failed attempts)
-- Never expose internal IDs in public-facing URLs without authorization checks
+### Этап 2 — Заказы и калькуляторы
+- [ ] Форма создания заказа
+- [ ] Калькуляторы (визитки, баннеры, упаковка, сувениры)
+- [ ] Статусы заказа и история изменений
 
-### Testing
-- Unit tests for business logic (deal stage transitions, permission checks)
-- Integration tests for API endpoints
-- E2E tests for critical user flows (create contact → create deal → close deal)
+### Этап 3 — Подрядчики
+- [ ] Кабинет цеха (видит свои задания)
+- [ ] Передача заказа подрядчику
+- [ ] Уведомления (внутри системы)
 
-### API Design
-- RESTful endpoints: `GET /contacts`, `POST /deals`, `PATCH /deals/:id`
-- Consistent error responses: `{ error: { code, message } }`
-- Pagination on all list endpoints: `?page=1&limit=20`
-- Filter and sort support: `?status=active&sort=created_at:desc`
+### Этап 4 — Деплой
+- [ ] Docker-конфигурация
+- [ ] Настройка VPS
+- [ ] Подключение домена + SSL
+- [ ] Первый боевой запуск
 
-## Environment Variables
+### Этап 5 — Интеграции
+- [ ] Форма с сайта типографии → Теремка
+- [ ] Уведомления в Telegram
 
-```env
-# Example — never commit real values
-DATABASE_URL=postgres://user:pass@localhost:5432/crm
-JWT_SECRET=changeme
-REDIS_URL=redis://localhost:6379
-APP_PORT=3000
-```
+---
 
-## Common Commands
-
-> Fill in once the project is set up.
+## Команды разработки
 
 ```bash
-# Install dependencies
-# npm install  /  pip install -r requirements.txt
+# Backend
+cd backend && npm install
+npm run dev          # запуск в режиме разработки
+npm run migrate      # применить миграции БД
 
-# Run development server
-# npm run dev  /  python manage.py runserver
+# Frontend
+cd frontend && npm install
+npm run dev          # http://localhost:3000
 
-# Run tests
-# npm test  /  pytest
-
-# Run database migrations
-# npm run migrate  /  python manage.py migrate
+# Docker (продакшн)
+docker-compose up -d
 ```
 
-## Key Business Rules
+---
 
-1. A **Deal** must always have an owner (assigned user)
-2. Only users with role `admin` or `manager` can delete contacts/deals
-3. When a deal moves to stage `Closed Won` or `Closed Lost`, it becomes read-only
-4. Activity log entries are **immutable** — never update, only append
-5. A contact can belong to multiple deals but has one primary owner
+## Переменные окружения (.env)
+
+```env
+# Backend
+DATABASE_URL=postgresql://user:password@localhost:5432/teremka
+JWT_SECRET=your-secret-key
+PORT=4000
+
+# Frontend
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
