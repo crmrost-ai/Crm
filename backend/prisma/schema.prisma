@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MANAGER
+  CONTRACTOR
+  ADMIN
+}
+
+enum OrderStatus {
+  NEW           // Новая заявка
+  CALCULATING   // Отправлена на расчёт подрядчику
+  CALCULATED    // Расчёт получен, ожидает согласования
+  AGREED        // Согласована с клиентом
+  IN_PRODUCTION // В производстве
+  READY         // Готово
+  DELIVERED     // Выдано клиенту
+  CLOSED        // Закрыт
+  CANCELLED     // Отменён
+}
+
+enum OrderSource {
+  PHONE
+  WHATSAPP
+  EMAIL
+  WEBSITE
+  TELEGRAM
+  OTHER
+}
+
+enum ProductType {
+  BUSINESS_CARDS  // Визитки / листовки
+  BANNERS         // Баннеры / таблички
+  PACKAGING       // Упаковка
+  SOUVENIRS       // Сувениры
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(MANAGER)
+  phone        String?
+  telegram     String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ordersAsManager    Order[]      @relation("OrderManager")
+  ordersAsContractor Order[]      @relation("OrderContractor")
+  statusHistory      OrderStatus_History[]
+
+  @@map("users")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  company   String?
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("clients")
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  number      Int         @unique @default(autoincrement())
+  status      OrderStatus @default(NEW)
+  source      OrderSource
+  productType ProductType
+  title       String      // Краткое название заказа
+
+  // Параметры заказа (свободная структура JSON)
+  params      Json?
+
+  // Цены
+  estimatedPrice Float?  @map("estimated_price")  // Предварительная цена
+  finalPrice     Float?  @map("final_price")        // Итоговая цена
+  currency       String  @default("RUB")
+
+  // Описание/комментарий
+  description String?
+  managerNote String? @map("manager_note")
+
+  // Файлы (список ссылок)
+  files Json? // [{ name, url, uploadedAt }]
+
+  // Срок выполнения
+  deadline DateTime?
+
+  // Связи
+  clientId     String  @map("client_id")
+  client       Client  @relation(fields: [clientId], references: [id])
+
+  managerId    String  @map("manager_id")
+  manager      User    @relation("OrderManager", fields: [managerId], references: [id])
+
+  contractorId String? @map("contractor_id")
+  contractor   User?   @relation("OrderContractor", fields: [contractorId], references: [id])
+
+  // Запрос на расчёт подрядчику
+  calcRequest     String?   @map("calc_request")   // Текст запроса
+  calcRequestedAt DateTime? @map("calc_requested_at")
+  calcResponse    String?   @map("calc_response")   // Ответ подрядчика
+  calcRespondedAt DateTime? @map("calc_responded_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  statusHistory OrderStatus_History[]
+
+  @@map("orders")
+}
+
+model OrderStatus_History {
+  id        String      @id @default(cuid())
+  orderId   String      @map("order_id")
+  order     Order       @relation(fields: [orderId], references: [id])
+  status    OrderStatus
+  comment   String?
+  userId    String      @map("user_id")
+  user      User        @relation(fields: [userId], references: [id])
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@map("order_status_history")
+}

@@ -1,0 +1,21 @@
+# Env files
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Prisma
+backend/prisma/migrations/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
