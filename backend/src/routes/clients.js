@@ -90,4 +90,16 @@ router.patch('/:id', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   res.json(client)
 })
 
+// DELETE /api/clients/:id
+router.delete('/:id', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
+  const orders = await prisma.order.count({ where: { clientId: req.params.id } })
+  if (orders > 0) {
+    return res.status(400).json({
+      error: `Нельзя удалить клиента — у него ${orders} заказ(ов). Сначала удалите или перепривяжите заказы.`
+    })
+  }
+  await prisma.client.delete({ where: { id: req.params.id } })
+  res.json({ ok: true })
+})
+
 module.exports = router

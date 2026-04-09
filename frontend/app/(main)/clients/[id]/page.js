@@ -52,6 +52,21 @@ export default function ClientDetailPage({ params }) {
     }
   }
 
+  async function handleDelete() {
+    const hasOrders = client.orders?.length > 0
+    const msg = hasOrders
+      ? `У клиента ${client.orders.length} заказ(ов). Удалить нельзя — сначала удалите или перепривяжите заказы.`
+      : `Удалить клиента «${client.name}»? Это действие нельзя отменить.`
+    if (hasOrders) { alert(msg); return }
+    if (!confirm(msg)) return
+    try {
+      await api.deleteClient(client.id)
+      router.push('/clients')
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
   if (loading) return <div className="text-gray-400 text-sm p-4">Загрузка...</div>
   if (error) return <div className="text-red-500 text-sm p-4">{error}</div>
   if (!client) return null
@@ -77,6 +92,14 @@ export default function ClientDetailPage({ params }) {
           )}
         </div>
         <div className="flex gap-2">
+          {isManager && (
+            <button
+              className="btn-secondary text-red-500 hover:text-red-700 hover:border-red-300"
+              onClick={handleDelete}
+            >
+              Удалить
+            </button>
+          )}
           {isManager && (
             <button
               className="btn-secondary"

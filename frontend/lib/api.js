@@ -63,6 +63,7 @@ export const api = {
   getClient: (id) => request(`/clients/${id}`),
   createClient: (data) => request('/clients', { method: 'POST', body: JSON.stringify(data) }),
   updateClient: (id, data) => request(`/clients/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteClient: (id) => request(`/clients/${id}`, { method: 'DELETE' }),
 
   // DaData
   searchParty: (query, type) => {

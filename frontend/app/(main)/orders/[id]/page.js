@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { api } from '@/lib/api'
 import { getUser } from '@/lib/auth'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -39,6 +40,10 @@ export default function OrderDetailPage({ params }) {
   const [assignModal, setAssignModal] = useState(false)
   const [assignContractor, setAssignContractor] = useState('')
   const [assigning, setAssigning] = useState(false)
+  const [showCreateContractor, setShowCreateContractor] = useState(false)
+  const [newContractor, setNewContractor] = useState({ name: '', email: '', password: '', phone: '', telegram: '' })
+  const [creatingContractor, setCreatingContractor] = useState(false)
+  const [createContractorError, setCreateContractorError] = useState('')
 
   // Передать в цех
   const [sendModal, setSendModal] = useState(false)
@@ -117,8 +122,30 @@ export default function OrderDetailPage({ params }) {
       const full = await api.getOrder(order.id)
       setOrder(full)
       setAssignModal(false)
+      setShowCreateContractor(false)
     } catch (e) { setError(e.message) }
     finally { setAssigning(false) }
+  }
+
+  async function handleCreateContractor(e) {
+    e.preventDefault()
+    if (!newContractor.name || !newContractor.email || !newContractor.password) {
+      setCreateContractorError('Заполните название, email и пароль')
+      return
+    }
+    setCreatingContractor(true)
+    setCreateContractorError('')
+    try {
+      const created = await api.createUser({ ...newContractor, role: 'CONTRACTOR' })
+      setContractors(prev => [...prev, created])
+      setAssignContractor(created.id)
+      setShowCreateContractor(false)
+      setNewContractor({ name: '', email: '', password: '', phone: '', telegram: '' })
+    } catch (err) {
+      setCreateContractorError(err.message)
+    } finally {
+      setCreatingContractor(false)
+    }
   }
 
   async function handleSendToContractor() {
@@ -217,10 +244,10 @@ export default function OrderDetailPage({ params }) {
 
         <div className="flex gap-2 flex-wrap shrink-0">
           {isManager && (
-            <a href={`/orders/${order.id}/invoice`} target="_blank" rel="noopener noreferrer"
+            <Link href={`/orders/${order.id}/invoice`} target="_blank" rel="noopener noreferrer"
               className="btn-secondary text-sm">
               🧾 Счёт
-            </a>
+            </Link>
           )}
           {isManager && (
             <button
@@ -566,7 +593,7 @@ export default function OrderDetailPage({ params }) {
               </div>
               {order.deadline && (
                 <div>
-                  <span className="text-gray-400">Срок: </span>
+                  <span className="text-gray-400">Срок сдачи клиенту: </span>
                   <span className="text-gray-700">
                     {format(new Date(order.deadline), 'd MMMM yyyy', { locale: ru })}
                   </span>
@@ -595,18 +622,73 @@ export default function OrderDetailPage({ params }) {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Назначить цех</h2>
-            <select className="input mb-4" value={assignContractor}
-              onChange={e => setAssignContractor(e.target.value)}>
-              <option value="">— выберите цех —</option>
-              {contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <div className="flex gap-3">
-              <button className="btn-primary flex-1" disabled={!assignContractor || assigning}
-                onClick={handleAssignContractor}>
-                {assigning ? 'Сохранение...' : 'Назначить'}
-              </button>
-              <button className="btn-secondary" onClick={() => setAssignModal(false)}>Отмена</button>
-            </div>
+
+            {!showCreateContractor ? (
+              <>
+                {contractors.length === 0 ? (
+                  <p className="text-sm text-gray-400 mb-3">Цехов пока нет. Создайте первый.</p>
+                ) : (
+                  <select className="input mb-3" value={assignContractor}
+                    onChange={e => setAssignContractor(e.target.value)}>
+                    <option value="">— выберите цех —</option>
+                    {contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                )}
+                <button
+                  type="button"
+                  className="text-sm text-blue-600 hover:underline mb-4 block"
+                  onClick={() => setShowCreateContractor(true)}
+                >
+                  + Создать новый цех
+                </button>
+                <div className="flex gap-3">
+                  <button className="btn-primary flex-1" disabled={!assignContractor || assigning}
+                    onClick={handleAssignContractor}>
+                    {assigning ? 'Сохранение...' : 'Назначить'}
+                  </button>
+                  <button className="btn-secondary" onClick={() => { setAssignModal(false); setShowCreateContractor(false) }}>Отмена</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 mb-3">Новый цех будет добавлен в систему</p>
+                <form onSubmit={handleCreateContractor} className="space-y-3">
+                  <div>
+                    <label className="label">Название цеха *</label>
+                    <input className="input" placeholder="Цех офсетной печати"
+                      value={newContractor.name}
+                      onChange={e => setNewContractor(f => ({ ...f, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Email *</label>
+                    <input type="email" className="input" placeholder="ceh@rost.ru"
+                      value={newContractor.email}
+                      onChange={e => setNewContractor(f => ({ ...f, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Пароль *</label>
+                    <input type="password" className="input" placeholder="Минимум 6 символов"
+                      value={newContractor.password}
+                      onChange={e => setNewContractor(f => ({ ...f, password: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Telegram (для уведомлений)</label>
+                    <input className="input" placeholder="@username или chat_id"
+                      value={newContractor.telegram}
+                      onChange={e => setNewContractor(f => ({ ...f, telegram: e.target.value }))} />
+                  </div>
+                  {createContractorError && <div className="text-red-600 text-sm">{createContractorError}</div>}
+                  <div className="flex gap-3 pt-1">
+                    <button type="submit" className="btn-primary flex-1" disabled={creatingContractor}>
+                      {creatingContractor ? 'Создание...' : 'Создать цех'}
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={() => setShowCreateContractor(false)}>
+                      Назад
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}

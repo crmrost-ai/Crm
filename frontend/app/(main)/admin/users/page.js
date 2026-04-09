@@ -32,7 +32,7 @@ export default function UsersPage() {
   function load() {
     setLoading(true)
     api.getUsers()
-      .then(u => setUsers(u))
+      .then(u => setUsers(u.filter(x => x.role !== 'CONTRACTOR')))
       .catch(console.error)
       .finally(() => setLoading(false))
   }
@@ -128,9 +128,9 @@ export default function UsersPage() {
                 <label className="label">Роль *</label>
                 <select className="input" value={form.role} onChange={e => setF('role', e.target.value)}>
                   <option value="MANAGER">Менеджер</option>
-                  <option value="CONTRACTOR">Подрядчик</option>
                   <option value="ADMIN">Администратор</option>
                 </select>
+                <p className="text-xs text-gray-400 mt-1">Цеха создаются на странице «Цеха»</p>
               </div>
               <div>
                 <label className="label">Телефон</label>
