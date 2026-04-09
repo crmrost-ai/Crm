@@ -125,7 +125,7 @@ export default function ClientsPage() {
                 return (
                   <tr key={c.id}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/orders?search=${encodeURIComponent(c.name)}`)}
+                    onClick={() => router.push(`/clients/${c.id}`)}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">

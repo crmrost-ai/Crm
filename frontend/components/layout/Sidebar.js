@@ -11,6 +11,7 @@ const NAV_MANAGER = [
   { href: '/orders/new',   label: '+ Новый заказ',    icon: null, accent: true },
   { href: '/clients',      label: 'Клиенты',          icon: '👥' },
   { divider: true },
+  { href: '/calculator',   label: 'Калькулятор',      icon: '🧮' },
   { href: '/contractors',  label: 'Цеха',             icon: '🏭' },
   { href: '/products',     label: 'Каталог продукции',icon: '🗂️' },
 ]
@@ -24,6 +25,7 @@ const NAV_ADMIN = [
   { href: '/orders',       label: 'Все заказы',       icon: '📋' },
   { href: '/clients',      label: 'Клиенты',          icon: '👥' },
   { divider: true },
+  { href: '/calculator',   label: 'Калькулятор',      icon: '🧮' },
   { href: '/contractors',  label: 'Цеха',             icon: '🏭' },
   { href: '/products',     label: 'Каталог продукции',icon: '🗂️' },
   { divider: true },

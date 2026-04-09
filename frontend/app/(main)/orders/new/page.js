@@ -17,16 +17,25 @@ export default function NewOrderPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const [form, setForm] = useState({
-    source: 'PHONE',
-    productType: searchParams.get('productType') || 'BUSINESS_CARDS',
-    title: '',
-    description: '',
-    estimatedPrice: '',
-    deadline: '',
-    managerNote: '',
-    deliveryAddress: '',
-    clientId: '',
+  const [form, setForm] = useState(() => {
+    const productType = searchParams.get('productType') || 'BUSINESS_CARDS'
+    const fromCalc = searchParams.get('fromCalc') === '1'
+    let description = '', estimatedPrice = ''
+    if (fromCalc && typeof window !== 'undefined') {
+      try {
+        const prefill = JSON.parse(sessionStorage.getItem('calc_prefill') || '{}')
+        if (prefill.productType === productType) {
+          description = prefill.description || ''
+          estimatedPrice = prefill.estimatedPrice || ''
+          sessionStorage.removeItem('calc_prefill')
+        }
+      } catch {}
+    }
+    return {
+      source: 'PHONE', productType,
+      title: '', description, estimatedPrice: estimatedPrice ? String(estimatedPrice) : '',
+      deadline: '', managerNote: '', deliveryAddress: '', clientId: '',
+    }
   })
 
   const [newClient, setNewClient] = useState({
