@@ -89,6 +89,12 @@ model Client {
   legalAddress String?  @map("legal_address")  // Юридический адрес
   director     String?  // Руководитель / ФИО ИП
 
+  // Банковские реквизиты
+  bik         String?  // БИК банка
+  bankName    String?  @map("bank_name")    // Название банка
+  bankAccount String?  @map("bank_account") // Расчётный счёт
+  corrAccount String?  @map("corr_account") // Корреспондентский счёт
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -114,8 +120,9 @@ model Order {
   currency       String  @default("RUB")
 
   // Описание/комментарий
-  description String?
-  managerNote String? @map("manager_note")
+  description     String?
+  managerNote     String? @map("manager_note")
+  deliveryAddress String? @map("delivery_address") // Адрес доставки
 
   // Файлы (список ссылок)
   files Json? // [{ name, url, uploadedAt }]
@@ -158,4 +165,13 @@ model OrderStatus_History {
   createdAt DateTime    @default(now()) @map("created_at")
 
   @@map("order_status_history")
+}
+
+// Настройки компании (реквизиты типографии для счетов и т.д.)
+model Settings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
 }

@@ -153,6 +153,16 @@ export default function OrderDetailPage({ params }) {
         {/* Кнопки действий */}
         <div className="flex gap-2 flex-wrap shrink-0">
           {isManager && (
+            <a
+              href={`/orders/${order.id}/invoice`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary text-sm"
+            >
+              🧾 Счёт
+            </a>
+          )}
+          {isManager && (
             <button className="btn-secondary" onClick={() => setAssignModal(true)}>
               {order.contractor ? `🏭 ${order.contractor.name}` : '+ Назначить цех'}
             </button>
@@ -349,6 +359,12 @@ export default function OrderDetailPage({ params }) {
                   <span className="text-gray-700">
                     {format(new Date(order.deadline), 'd MMMM yyyy', { locale: ru })}
                   </span>
+                </div>
+              )}
+              {order.deliveryAddress && (
+                <div>
+                  <span className="text-gray-400 block mb-0.5">Доставка:</span>
+                  <span className="text-gray-700">{order.deliveryAddress}</span>
                 </div>
               )}
             </div>

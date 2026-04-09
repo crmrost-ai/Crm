@@ -56,6 +56,7 @@ router.post('/', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
     type = 'INDIVIDUAL',
     name, phone, email, contactPerson, comment,
     inn, kpp, ogrn, ogrnip, legalAddress, director,
+    bik, bankName, bankAccount, corrAccount,
   } = req.body
 
   if (!name) return res.status(400).json({ error: 'Имя / название обязательно' })
@@ -64,6 +65,7 @@ router.post('/', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
     data: {
       type, name, phone, email, contactPerson, comment,
       inn, kpp, ogrn, ogrnip, legalAddress, director,
+      bik, bankName, bankAccount, corrAccount,
     },
   })
   res.status(201).json(client)
@@ -74,6 +76,7 @@ router.patch('/:id', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   const {
     name, phone, email, contactPerson, comment,
     inn, kpp, ogrn, ogrnip, legalAddress, director, type,
+    bik, bankName, bankAccount, corrAccount,
   } = req.body
 
   const client = await prisma.client.update({
@@ -81,6 +84,7 @@ router.patch('/:id', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
     data: {
       name, phone, email, contactPerson, comment,
       inn, kpp, ogrn, ogrnip, legalAddress, director, type,
+      bik, bankName, bankAccount, corrAccount,
     },
   })
   res.json(client)

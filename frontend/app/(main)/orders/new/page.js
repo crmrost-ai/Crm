@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { PRODUCT_TYPE, ORDER_SOURCE } from '@/lib/constants'
 import DateQuickPick from '@/components/ui/DateQuickPick'
+import AddressInput from '@/components/ui/AddressInput'
 import ClientForm from '@/components/orders/ClientForm'
 
 export default function NewOrderPage() {
@@ -24,6 +25,7 @@ export default function NewOrderPage() {
     estimatedPrice: '',
     deadline: '',
     managerNote: '',
+    deliveryAddress: '',
     clientId: '',
   })
 
@@ -148,6 +150,15 @@ export default function NewOrderPage() {
             <DateQuickPick
               value={form.deadline}
               onChange={v => set('deadline', v)}
+            />
+          </div>
+
+          <div>
+            <label className="label">Адрес доставки</label>
+            <AddressInput
+              value={form.deliveryAddress}
+              onChange={v => set('deliveryAddress', v)}
+              placeholder="Начните вводить адрес доставки..."
             />
           </div>
 

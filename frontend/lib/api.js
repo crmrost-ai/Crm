@@ -69,6 +69,19 @@ export const api = {
     const q = new URLSearchParams({ query, ...(type ? { type } : {}) }).toString()
     return request(`/dadata/party?${q}`)
   },
+  getPartyByInn: (inn) => request(`/dadata/party/${inn}`),
+  searchAddress: (query) => {
+    const q = new URLSearchParams({ query }).toString()
+    return request(`/dadata/address?${q}`)
+  },
+  searchBank: (query) => {
+    const q = new URLSearchParams({ query }).toString()
+    return request(`/dadata/bank?${q}`)
+  },
+
+  // Settings
+  getSettings: () => request('/settings'),
+  updateSettings: (data) => request('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
 
   // Users
   getContractors: () => request('/users/contractors'),

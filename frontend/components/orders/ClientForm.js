@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import PhoneInput from '@/components/ui/PhoneInput'
 import InnSearch from '@/components/ui/InnSearch'
+import BankSearch from '@/components/ui/BankSearch'
 
 const TYPES = [
   { value: 'INDIVIDUAL',   label: 'Физлицо',  icon: '👤' },
@@ -14,6 +15,7 @@ const EMPTY = {
   type: 'INDIVIDUAL',
   name: '', phone: '', email: '', contactPerson: '', comment: '',
   inn: '', kpp: '', ogrn: '', ogrnip: '', legalAddress: '', director: '',
+  bik: '', bankName: '', bankAccount: '', corrAccount: '',
 }
 
 export default function ClientForm({ value, onChange }) {
@@ -39,6 +41,15 @@ export default function ClientForm({ value, onChange }) {
       ogrnip:       s.ogrnip || '',
       legalAddress: s.legalAddress || '',
       director:     s.director || '',
+    })
+  }
+
+  function handleBankSelect(bank) {
+    onChange({
+      ...data,
+      bik:         bank.bik || '',
+      bankName:    bank.bankName || '',
+      corrAccount: bank.corrAccount || '',
     })
   }
 
@@ -173,6 +184,47 @@ export default function ClientForm({ value, onChange }) {
             value={data.email} onChange={e => set('email', e.target.value)} />
         </div>
       </div>
+
+      {/* Банковские реквизиты — только для ИП и Юрлиц */}
+      {isBusiness && (
+        <div className="border-t border-gray-100 pt-4 space-y-3">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            Банковские реквизиты
+          </div>
+          <div>
+            <label className="label">
+              Поиск банка по БИК или названию
+              <span className="text-gray-400 font-normal ml-1">(автозаполнение)</span>
+            </label>
+            <BankSearch
+              value={{ bik: data.bik, bankName: data.bankName, corrAccount: data.corrAccount }}
+              onChange={handleBankSelect}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">БИК</label>
+              <input className="input font-mono" placeholder="044525225" value={data.bik}
+                onChange={e => set('bik', e.target.value)} maxLength={9} />
+            </div>
+            <div>
+              <label className="label">К/с банка</label>
+              <input className="input font-mono" placeholder="30101810400000000225" value={data.corrAccount}
+                onChange={e => set('corrAccount', e.target.value)} maxLength={20} />
+            </div>
+          </div>
+          <div>
+            <label className="label">Название банка</label>
+            <input className="input" placeholder="ПАО Сбербанк" value={data.bankName}
+              onChange={e => set('bankName', e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Расчётный счёт</label>
+            <input className="input font-mono" placeholder="40702810938000123456" value={data.bankAccount}
+              onChange={e => set('bankAccount', e.target.value)} maxLength={20} />
+          </div>
+        </div>
+      )}
 
       {/* Комментарий */}
       <div>
