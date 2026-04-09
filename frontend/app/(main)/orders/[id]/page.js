@@ -1,16 +1,26 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { getUser } from '@/lib/auth'
 import StatusBadge from '@/components/ui/StatusBadge'
+import DateQuickPick from '@/components/ui/DateQuickPick'
+import AddressInput from '@/components/ui/AddressInput'
 import {
   ORDER_STATUS, PRODUCT_TYPE, ORDER_SOURCE,
   MANAGER_STATUS_FLOW, CONTRACTOR_STATUS_FLOW,
 } from '@/lib/constants'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
+
+// Размер файла читаемо
+function fmtSize(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} Б`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`
+  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`
+}
 
 export default function OrderDetailPage({ params }) {
   const router = useRouter()
@@ -20,12 +30,17 @@ export default function OrderDetailPage({ params }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Назначить подрядчика (без отправки на расчёт)
+  // Редактирование
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState({})
+  const [editSaving, setEditSaving] = useState(false)
+
+  // Назначить цех
   const [assignModal, setAssignModal] = useState(false)
   const [assignContractor, setAssignContractor] = useState('')
   const [assigning, setAssigning] = useState(false)
 
-  // Передать в цех (с запросом расчёта)
+  // Передать в цех
   const [sendModal, setSendModal] = useState(false)
   const [selectedContractor, setSelectedContractor] = useState('')
   const [calcRequest, setCalcRequest] = useState('')
@@ -40,11 +55,16 @@ export default function OrderDetailPage({ params }) {
   // Смена статуса
   const [statusChanging, setStatusChanging] = useState(false)
 
+  // Файлы
+  const fileRef = useRef(null)
+  const [uploading, setUploading] = useState(false)
+
   useEffect(() => {
     Promise.all([api.getOrder(params.id), api.getContractors()])
       .then(([o, c]) => {
         setOrder(o)
         setContractors(c)
+        initEdit(o)
         if (o.contractorId) {
           setAssignContractor(o.contractorId)
           setSelectedContractor(o.contractorId)
@@ -54,21 +74,51 @@ export default function OrderDetailPage({ params }) {
       .finally(() => setLoading(false))
   }, [params.id])
 
+  function initEdit(o) {
+    setEditForm({
+      title: o.title || '',
+      description: o.description || '',
+      estimatedPrice: o.estimatedPrice || '',
+      finalPrice: o.finalPrice || '',
+      managerNote: o.managerNote || '',
+      deliveryAddress: o.deliveryAddress || '',
+      deadline: o.deadline ? o.deadline.split('T')[0] : '',
+      source: o.source || '',
+      productType: o.productType || '',
+    })
+  }
+
+  async function handleSaveEdit() {
+    setEditSaving(true)
+    try {
+      const full = await api.getOrder(params.id)
+      setOrder(full)
+      await api.updateOrder(order.id, {
+        ...editForm,
+        estimatedPrice: editForm.estimatedPrice ? Number(editForm.estimatedPrice) : undefined,
+        finalPrice: editForm.finalPrice ? Number(editForm.finalPrice) : undefined,
+        deadline: editForm.deadline || undefined,
+      })
+      const updated = await api.getOrder(params.id)
+      setOrder(updated)
+      setEditMode(false)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   async function handleAssignContractor() {
     if (!assignContractor) return
     setAssigning(true)
     try {
-      // Просто обновляем подрядчика через patch, без смены статуса
-      const updated = await api.updateOrder(order.id, { contractorId: assignContractor })
-      // Перезагружаем полные данные
+      await api.updateOrder(order.id, { contractorId: assignContractor })
       const full = await api.getOrder(order.id)
       setOrder(full)
       setAssignModal(false)
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setAssigning(false)
-    }
+    } catch (e) { setError(e.message) }
+    finally { setAssigning(false) }
   }
 
   async function handleSendToContractor() {
@@ -79,11 +129,8 @@ export default function OrderDetailPage({ params }) {
       setOrder(updated)
       setSendModal(false)
       setCalcRequest('')
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setSending(false)
-    }
+    } catch (e) { setError(e.message) }
+    finally { setSending(false) }
   }
 
   async function handleCalcResponse() {
@@ -96,11 +143,8 @@ export default function OrderDetailPage({ params }) {
       )
       setOrder(updated)
       setResponseModal(false)
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setResponding(false)
-    }
+    } catch (e) { setError(e.message) }
+    finally { setResponding(false) }
   }
 
   async function handleStatusChange(newStatus) {
@@ -108,12 +152,33 @@ export default function OrderDetailPage({ params }) {
     try {
       const updated = await api.changeStatus(order.id, newStatus)
       setOrder(updated)
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setStatusChanging(false)
-    }
+    } catch (e) { setError(e.message) }
+    finally { setStatusChanging(false) }
   }
+
+  // ── Файлы ────────────────────────────────────────────────────────────────────
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      await api.uploadFile(order.id, file)
+      const updated = await api.getOrder(order.id)
+      setOrder(updated)
+    } catch (e) { setError(e.message) }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = '' }
+  }
+
+  async function handleDeleteFile(filename) {
+    if (!confirm('Удалить файл?')) return
+    try {
+      await api.deleteFile(order.id, filename)
+      const updated = await api.getOrder(order.id)
+      setOrder(updated)
+    } catch (e) { setError(e.message) }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   if (loading) return <div className="text-gray-400 text-sm p-4">Загрузка...</div>
   if (error && !order) return <div className="text-red-500 text-sm p-4">{error}</div>
@@ -126,7 +191,7 @@ export default function OrderDetailPage({ params }) {
     ? (MANAGER_STATUS_FLOW[order.status] || [])
     : (CONTRACTOR_STATUS_FLOW[order.status] || [])
 
-  const contractorName = contractors.find(c => c.id === order.contractorId)?.name
+  const files = Array.isArray(order.files) ? order.files : []
 
   return (
     <div className="max-w-4xl">
@@ -150,17 +215,20 @@ export default function OrderDetailPage({ params }) {
           </p>
         </div>
 
-        {/* Кнопки действий */}
         <div className="flex gap-2 flex-wrap shrink-0">
           {isManager && (
-            <a
-              href={`/orders/${order.id}/invoice`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary text-sm"
-            >
+            <a href={`/orders/${order.id}/invoice`} target="_blank" rel="noopener noreferrer"
+              className="btn-secondary text-sm">
               🧾 Счёт
             </a>
+          )}
+          {isManager && (
+            <button
+              className={`btn-secondary ${editMode ? 'bg-gray-100' : ''}`}
+              onClick={() => { setEditMode(!editMode); initEdit(order); setError('') }}
+            >
+              {editMode ? 'Отмена' : '✏️ Редактировать'}
+            </button>
           )}
           {isManager && (
             <button className="btn-secondary" onClick={() => setAssignModal(true)}>
@@ -178,12 +246,8 @@ export default function OrderDetailPage({ params }) {
             </button>
           )}
           {availableStatuses.map(s => (
-            <button
-              key={s}
-              className="btn-secondary btn-sm"
-              disabled={statusChanging}
-              onClick={() => handleStatusChange(s)}
-            >
+            <button key={s} className="btn-secondary btn-sm"
+              disabled={statusChanging} onClick={() => handleStatusChange(s)}>
               → {ORDER_STATUS[s]?.label}
             </button>
           ))}
@@ -198,29 +262,179 @@ export default function OrderDetailPage({ params }) {
       )}
 
       <div className="grid grid-cols-3 gap-5">
-        {/* Основной блок */}
         <div className="col-span-2 space-y-4">
 
+          {/* ── Форма редактирования ── */}
+          {editMode ? (
+            <div className="card p-5 space-y-4">
+              <h2 className="font-semibold text-gray-800">Редактирование заказа</h2>
+
+              <div>
+                <label className="label">Название *</label>
+                <input className="input" value={editForm.title}
+                  onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Источник</label>
+                  <select className="input" value={editForm.source}
+                    onChange={e => setEditForm(f => ({ ...f, source: e.target.value }))}>
+                    {Object.entries(ORDER_SOURCE).map(([k, v]) => (
+                      <option key={k} value={k}>{v.icon} {v.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Тип продукции</label>
+                  <select className="input" value={editForm.productType}
+                    onChange={e => setEditForm(f => ({ ...f, productType: e.target.value }))}>
+                    {Object.entries(PRODUCT_TYPE).map(([k, v]) => (
+                      <option key={k} value={k}>{v.icon} {v.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Описание / параметры</label>
+                <textarea className="input resize-none" rows={4}
+                  value={editForm.description}
+                  onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="label">Предв. цена (₽)</label>
+                  <input type="number" className="input" value={editForm.estimatedPrice}
+                    onChange={e => setEditForm(f => ({ ...f, estimatedPrice: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Итоговая цена (₽)</label>
+                  <input type="number" className="input" value={editForm.finalPrice}
+                    onChange={e => setEditForm(f => ({ ...f, finalPrice: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Срок сдачи</label>
+                  <input type="date" className="input" value={editForm.deadline}
+                    onChange={e => setEditForm(f => ({ ...f, deadline: e.target.value }))} />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Адрес доставки</label>
+                <AddressInput value={editForm.deliveryAddress}
+                  onChange={v => setEditForm(f => ({ ...f, deliveryAddress: v }))} />
+              </div>
+
+              <div>
+                <label className="label">Заметка менеджера</label>
+                <textarea className="input resize-none" rows={2}
+                  value={editForm.managerNote}
+                  onChange={e => setEditForm(f => ({ ...f, managerNote: e.target.value }))} />
+              </div>
+
+              <div className="flex gap-3">
+                <button className="btn-primary" disabled={editSaving} onClick={handleSaveEdit}>
+                  {editSaving ? 'Сохранение...' : 'Сохранить изменения'}
+                </button>
+                <button className="btn-secondary" onClick={() => setEditMode(false)}>
+                  Отмена
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ── Параметры заказа ── */
+            <div className="card p-5">
+              <h2 className="font-semibold text-gray-800 mb-3">Параметры заказа</h2>
+              {order.description ? (
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{order.description}</p>
+              ) : (
+                <p className="text-sm text-gray-400">Описание не указано</p>
+              )}
+              {order.params && Object.keys(order.params).length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
+                  {Object.entries(order.params).map(([k, v]) => (
+                    <div key={k} className="text-sm">
+                      <span className="text-gray-400">{k}: </span>
+                      <span className="text-gray-700">{String(v)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Файлы ── */}
           <div className="card p-5">
-            <h2 className="font-semibold text-gray-800 mb-3">Параметры заказа</h2>
-            {order.description ? (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{order.description}</p>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-800">
+                Файлы
+                {files.length > 0 && (
+                  <span className="text-gray-400 font-normal ml-2 text-sm">{files.length}</span>
+                )}
+              </h2>
+              <div>
+                <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload}
+                  accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.ai,.cdr,.psd,.eps,.zip,.rar,.doc,.docx,.xls,.xlsx,.tiff,.tif,.svg"
+                />
+                <button
+                  className="btn-secondary btn-sm"
+                  disabled={uploading}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {uploading ? 'Загрузка...' : '+ Добавить файл'}
+                </button>
+              </div>
+            </div>
+
+            {files.length === 0 ? (
+              <div
+                className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 transition-colors"
+                onClick={() => fileRef.current?.click()}
+              >
+                Перетащите файлы или нажмите для выбора<br />
+                <span className="text-xs">PDF, AI, CDR, PSD, изображения, ZIP — до 50 МБ</span>
+              </div>
             ) : (
-              <p className="text-sm text-gray-400">Описание не указано</p>
-            )}
-            {order.params && Object.keys(order.params).length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
-                {Object.entries(order.params).map(([k, v]) => (
-                  <div key={k} className="text-sm">
-                    <span className="text-gray-400">{k}: </span>
-                    <span className="text-gray-700">{String(v)}</span>
+              <div className="space-y-2">
+                {files.map((f, i) => (
+                  <div key={i}
+                    className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg text-sm group">
+                    <span className="text-lg">
+                      {/\.(pdf)$/i.test(f.name) ? '📄' :
+                       /\.(ai|cdr|eps|psd)$/i.test(f.name) ? '🎨' :
+                       /\.(zip|rar)$/i.test(f.name) ? '🗜️' :
+                       /\.(jpg|jpeg|png|gif|webp|tiff?)$/i.test(f.name) ? '🖼️' : '📎'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${f.url}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="font-medium text-blue-600 hover:underline truncate block"
+                      >
+                        {f.name}
+                      </a>
+                      <div className="text-xs text-gray-400">
+                        {fmtSize(f.size)}
+                        {f.uploadedAt && ` · ${format(new Date(f.uploadedAt), 'd MMM, HH:mm', { locale: ru })}`}
+                      </div>
+                    </div>
+                    {isManager && (
+                      <button
+                        onClick={() => handleDeleteFile(f.filename)}
+                        className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-lg leading-none"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Переписка с цехом */}
+          {/* ── Переписка с цехом ── */}
           {(order.calcRequest || order.calcResponse) && (
             <div className="card p-5 space-y-4">
               <h2 className="font-semibold text-gray-800">Переписка с цехом</h2>
@@ -249,7 +463,7 @@ export default function OrderDetailPage({ params }) {
             </div>
           )}
 
-          {/* История статусов */}
+          {/* ── История ── */}
           {order.statusHistory?.length > 0 && (
             <div className="card p-5">
               <h2 className="font-semibold text-gray-800 mb-3">История</h2>
@@ -274,16 +488,13 @@ export default function OrderDetailPage({ params }) {
           )}
         </div>
 
-        {/* Боковая панель */}
+        {/* ── Сайдбар ── */}
         <div className="space-y-4">
 
           <div className="card p-4">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Клиент</h3>
             <div className="text-sm">
               <div className="font-medium text-gray-900">{order.client?.name}</div>
-              {order.client?.company && order.client.company !== order.client.name && (
-                <div className="text-gray-500">{order.client.company}</div>
-              )}
               {order.client?.phone && (
                 <a href={`tel:${order.client.phone}`} className="text-blue-600 hover:underline block mt-1">
                   {order.client.phone}
@@ -294,6 +505,10 @@ export default function OrderDetailPage({ params }) {
                   {order.client.email}
                 </a>
               )}
+              <a href={`/clients/${order.client?.id}`}
+                className="text-xs text-gray-400 hover:text-blue-500 mt-1 block">
+                Карточка клиента →
+              </a>
             </div>
           </div>
 
@@ -323,10 +538,8 @@ export default function OrderDetailPage({ params }) {
                 {order.contractor.phone && <div className="text-gray-500 mt-1">{order.contractor.phone}</div>}
                 {order.contractor.telegram && <div className="text-blue-600">{order.contractor.telegram}</div>}
                 {isManager && (
-                  <button
-                    onClick={() => setAssignModal(true)}
-                    className="text-xs text-gray-400 hover:text-blue-600 mt-2 underline"
-                  >
+                  <button onClick={() => setAssignModal(true)}
+                    className="text-xs text-gray-400 hover:text-blue-600 mt-2 underline">
                     Изменить
                   </button>
                 )}
@@ -335,10 +548,8 @@ export default function OrderDetailPage({ params }) {
               <div className="text-sm text-gray-400">
                 Не назначен
                 {isManager && (
-                  <button
-                    onClick={() => setAssignModal(true)}
-                    className="block text-blue-600 hover:underline mt-1 text-xs"
-                  >
+                  <button onClick={() => setAssignModal(true)}
+                    className="block text-blue-600 hover:underline mt-1 text-xs">
                     + Назначить
                   </button>
                 )}
@@ -379,28 +590,19 @@ export default function OrderDetailPage({ params }) {
         </div>
       </div>
 
-      {/* === Модалка: назначить цех === */}
+      {/* Модалка: назначить цех */}
       {assignModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Назначить цех</h2>
-            <p className="text-sm text-gray-500 mb-4">Цех будет виден в карточке заказа</p>
-            <select
-              className="input mb-4"
-              value={assignContractor}
-              onChange={e => setAssignContractor(e.target.value)}
-            >
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Назначить цех</h2>
+            <select className="input mb-4" value={assignContractor}
+              onChange={e => setAssignContractor(e.target.value)}>
               <option value="">— выберите цех —</option>
-              {contractors.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <div className="flex gap-3">
-              <button
-                className="btn-primary flex-1"
-                disabled={!assignContractor || assigning}
-                onClick={handleAssignContractor}
-              >
+              <button className="btn-primary flex-1" disabled={!assignContractor || assigning}
+                onClick={handleAssignContractor}>
                 {assigning ? 'Сохранение...' : 'Назначить'}
               </button>
               <button className="btn-secondary" onClick={() => setAssignModal(false)}>Отмена</button>
@@ -409,46 +611,31 @@ export default function OrderDetailPage({ params }) {
         </div>
       )}
 
-      {/* === Модалка: передать в цех на расчёт === */}
+      {/* Модалка: передать в цех */}
       {sendModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Передать в цех</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Цех получит заказ и должен будет ввести стоимость и сроки производства.
-              Статус изменится на «На расчёте».
-            </p>
+            <p className="text-sm text-gray-500 mb-4">Статус изменится на «На расчёте».</p>
             <div className="space-y-4">
               <div>
                 <label className="label">Цех *</label>
-                <select
-                  className="input"
-                  value={selectedContractor}
-                  onChange={e => setSelectedContractor(e.target.value)}
-                >
+                <select className="input" value={selectedContractor}
+                  onChange={e => setSelectedContractor(e.target.value)}>
                   <option value="">— выберите цех —</option>
-                  {contractors.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label">Сопроводительное сообщение (необязательно)</label>
-                <textarea
-                  className="input resize-none"
-                  rows={4}
-                  placeholder="Уточнения, особые пожелания для цеха..."
-                  value={calcRequest}
-                  onChange={e => setCalcRequest(e.target.value)}
-                />
+                <label className="label">Сопроводительное сообщение</label>
+                <textarea className="input resize-none" rows={4}
+                  placeholder="Уточнения, особые пожелания..."
+                  value={calcRequest} onChange={e => setCalcRequest(e.target.value)} />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button
-                className="btn-primary flex-1"
-                disabled={!selectedContractor || sending}
-                onClick={handleSendToContractor}
-              >
+              <button className="btn-primary flex-1" disabled={!selectedContractor || sending}
+                onClick={handleSendToContractor}>
                 {sending ? 'Передаём...' : 'Передать'}
               </button>
               <button className="btn-secondary" onClick={() => setSendModal(false)}>Отмена</button>
@@ -457,40 +644,28 @@ export default function OrderDetailPage({ params }) {
         </div>
       )}
 
-      {/* === Модалка: ввод расчёта подрядчиком === */}
+      {/* Модалка: ввод расчёта */}
       {responseModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Ввести расчёт</h2>
-            <p className="text-sm text-gray-500 mb-4">Заказ: {order.title}</p>
+            <p className="text-sm text-gray-500 mb-4">{order.title}</p>
             <div className="space-y-4">
               <div>
                 <label className="label">Стоимость и условия *</label>
-                <textarea
-                  className="input resize-none"
-                  rows={5}
-                  placeholder="Опишите стоимость, сроки производства, условия..."
-                  value={calcResponse}
-                  onChange={e => setCalcResponse(e.target.value)}
-                />
+                <textarea className="input resize-none" rows={5}
+                  placeholder="Стоимость, сроки производства, условия..."
+                  value={calcResponse} onChange={e => setCalcResponse(e.target.value)} />
               </div>
               <div>
                 <label className="label">Итоговая сумма (₽)</label>
-                <input
-                  type="number"
-                  className="input"
-                  placeholder="0"
-                  value={responsePrice}
-                  onChange={e => setResponsePrice(e.target.value)}
-                />
+                <input type="number" className="input" placeholder="0"
+                  value={responsePrice} onChange={e => setResponsePrice(e.target.value)} />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button
-                className="btn-primary flex-1"
-                disabled={!calcResponse || responding}
-                onClick={handleCalcResponse}
-              >
+              <button className="btn-primary flex-1" disabled={!calcResponse || responding}
+                onClick={handleCalcResponse}>
                 {responding ? 'Отправка...' : 'Отправить менеджеру'}
               </button>
               <button className="btn-secondary" onClick={() => setResponseModal(false)}>Отмена</button>

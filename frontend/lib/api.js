@@ -79,6 +79,24 @@ export const api = {
     return request(`/dadata/bank?${q}`)
   },
 
+  // Files
+  uploadFile: (orderId, file) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('teremka_token') : null
+    const formData = new FormData()
+    formData.append('file', file)
+    return fetch(`${BASE_URL}/api/orders/${orderId}/files`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }).then(async r => {
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'Ошибка загрузки')
+      return data
+    })
+  },
+  deleteFile: (orderId, filename) =>
+    request(`/orders/${orderId}/files/${encodeURIComponent(filename)}`, { method: 'DELETE' }),
+
   // Settings
   getSettings: () => request('/settings'),
   updateSettings: (data) => request('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
