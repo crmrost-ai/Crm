@@ -23,55 +23,41 @@
 | Роль | Описание |
 |---|---|
 | **Менеджер** | Принимает заявки, общается с клиентами, контролирует заказы |
-| **Подрядчик (цех)** | Получает задания, меняет статус, загружает результат |
-| **Администратор** | Управляет справочниками, ценами, пользователями |
+| **Подрядчик (цех)** | Получает задания, меняет статус, вводит расчёт |
+| **Администратор** | Управляет пользователями, настройками, имеет доступ ко всему |
 
 ---
 
-## Источники заявок (Phase 1)
+## Источники заявок
 
 - Телефон / WhatsApp → менеджер вводит вручную
-- Email → менеджер вводит вручную (или автоимпорт в будущем)
-- Сайт типографии → форма заказа, интегрированная с Теремкой
-- Telegram менеджера → заявки пересылаются/вводятся в систему
-
----
-
-## Калькуляторы (Phase 1)
-
-Автоматический расчёт стоимости по параметрам:
-
-### 1. Визитки / Листовки
-Параметры: формат (90x50, A6, A5, A4), тираж, бумага (мелованная/офсет), плотность (150/300/350г), односторонние/двусторонние, ламинация (нет/мат/глянец)
-
-### 2. Баннеры / Таблички
-Параметры: ширина × высота (метры), материал (банерная ткань, ПВХ, оргстекло), тип отделки (люверсы, карман, без), срочность
-
-### 3. Упаковка
-Параметры: тип (коробка, пакет), размер (Ш×Г×В), тираж, материал, печать (без/1 цвет/полноцвет)
-
-### 4. Сувениры
-Параметры: тип изделия (кружка, футболка, ручка, кепка и др.), количество, способ нанесения (печать/вышивка/гравировка), количество цветов
+- Email → менеджер вводит вручную
+- Сайт типографии → форма заказа (планируется интеграция)
+- Telegram → уведомления (планируется)
 
 ---
 
 ## Жизненный цикл заказа
 
 ```
-Новая заявка
+NEW (Новая заявка)
     ↓
-Расчёт (авто-калькулятор или менеджер вручную)
+CALCULATING (Отправлена на расчёт подрядчику)
     ↓
-Согласование с клиентом (цена подтверждена)
+CALCULATED (Расчёт получен, ожидает согласования)
     ↓
-Передача в цех (подрядчику)
+AGREED (Согласована с клиентом)
     ↓
-В производстве
+IN_PRODUCTION (В производстве)
     ↓
-Готово / Выдано клиенту
+READY (Готово)
     ↓
-Закрыт
+DELIVERED (Выдано клиенту)
+    ↓
+CLOSED (Закрыт)
 ```
+
+Также: CANCELLED (Отменён) — из любого статуса.
 
 ---
 
@@ -79,30 +65,62 @@
 
 ```
 Crm/
-├── backend/              # API-сервер (Node.js + Express)
+├── backend/
 │   ├── src/
-│   │   ├── routes/       # API эндпоинты
-│   │   ├── models/       # Модели данных (Prisma ORM)
-│   │   ├── services/     # Бизнес-логика (калькуляторы, статусы)
-│   │   ├── middleware/   # Auth, валидация
+│   │   ├── routes/
+│   │   │   ├── auth.js        # POST /login, GET /me
+│   │   │   ├── orders.js      # CRUD заказов, статусы, расчёт
+│   │   │   ├── clients.js     # CRUD клиентов
+│   │   │   ├── users.js       # Пользователи (admin)
+│   │   │   ├── dadata.js      # Прокси к DaData API
+│   │   │   └── settings.js    # Реквизиты компании
+│   │   ├── middleware/
+│   │   │   └── auth.js        # JWT, requireRole
 │   │   └── index.js
 │   ├── prisma/
-│   │   └── schema.prisma # Схема БД
+│   │   ├── schema.prisma
+│   │   └── migrations/
 │   └── package.json
 │
-├── frontend/             # Веб-интерфейс (Next.js + React)
+├── frontend/
 │   ├── app/
-│   │   ├── dashboard/    # Главная менеджера
-│   │   ├── orders/       # Список и форма заказов
-│   │   ├── calculator/   # Калькуляторы
-│   │   ├── contractors/  # Кабинет цехов
-│   │   └── admin/        # Администрирование
-│   └── package.json
+│   │   ├── (main)/
+│   │   │   ├── dashboard/         # Дашборд (менеджер / подрядчик)
+│   │   │   ├── orders/
+│   │   │   │   ├── page.js        # Список заказов с фильтрами
+│   │   │   │   ├── new/           # Создание заказа
+│   │   │   │   └── [id]/
+│   │   │   │       ├── page.js    # Карточка заказа
+│   │   │   │       └── invoice/   # Счёт на оплату (печать/PDF)
+│   │   │   ├── clients/
+│   │   │   │   ├── page.js        # Список клиентов
+│   │   │   │   └── [id]/          # Карточка клиента
+│   │   │   ├── calculator/        # Калькулятор (4 типа продукции)
+│   │   │   ├── contractors/       # Список цехов
+│   │   │   ├── products/          # Каталог продукции
+│   │   │   └── admin/
+│   │   │       ├── users/         # Управление пользователями
+│   │   │       └── settings/      # Реквизиты компании
+│   │   └── login/
+│   ├── components/
+│   │   ├── layout/
+│   │   │   └── Sidebar.js
+│   │   ├── orders/
+│   │   │   └── ClientForm.js      # Форма клиента (все 3 типа)
+│   │   └── ui/
+│   │       ├── StatusBadge.js
+│   │       ├── PhoneInput.js      # Маска +7
+│   │       ├── DateQuickPick.js   # +3/7/14/30 дней
+│   │       ├── InnSearch.js       # Поиск по ИНН/названию (DaData)
+│   │       ├── AddressInput.js    # Автодополнение адреса (DaData)
+│   │       └── BankSearch.js      # Поиск банка по БИК (DaData)
+│   └── lib/
+│       ├── api.js                 # Все API-вызовы
+│       ├── auth.js                # getUser, logout
+│       └── constants.js           # Статусы, источники, типы продукции
 │
-├── database/
-│   └── migrations/       # История миграций БД
-│
-├── docs/                 # Документация
+├── deploy.sh                      # Скрипт деплоя на VPS
+├── nginx-rost.conf                # Конфиг Nginx (subpath /rost)
 └── CLAUDE.md
 ```
 
@@ -110,69 +128,118 @@ Crm/
 
 ## Технологический стек
 
-| Слой | Технология | Зачем |
-|---|---|---|
-| Backend | Node.js + Express | Простой, быстрый API |
-| ORM | Prisma | Удобная работа с БД без SQL |
-| База данных | PostgreSQL | Надёжная реляционная БД |
-| Frontend | Next.js 14 (React) | Современный UI, SSR |
-| UI-компоненты | Shadcn/ui + Tailwind | Готовые красивые компоненты |
-| Auth | JWT + bcrypt | Безопасная авторизация |
-| Хостинг | VPS (Timeweb / REG.RU) | Российский хостинг, SSD |
-| Деплой | Docker + docker-compose | Простое разворачивание |
+| Слой | Технология |
+|---|---|
+| Backend | Node.js + Express |
+| ORM | Prisma |
+| База данных | PostgreSQL |
+| Frontend | Next.js 14 (App Router) |
+| Стили | Tailwind CSS |
+| Auth | JWT + bcrypt |
+| Внешний API | DaData (ИНН, адрес, банк) |
+| Хостинг | VPS (antonchernyshov.ru/rost) |
 
 ---
 
-## Основные сущности БД
+## Схема БД (актуальная)
 
 ```
-Order (Заказ)
-  id, number, status, source, client_id, manager_id,
-  contractor_id, product_type, params (JSON),
-  price, comment, created_at, updated_at
-
-Client (Клиент)
-  id, name, phone, email, company, created_at
-
-User (Пользователь)
-  id, name, email, password_hash, role (manager|contractor|admin)
-
-Contractor (Подрядчик / Цех)
-  id, name, specialization[], contact_name, phone, telegram
-
-PriceRule (Правило ценообразования)
-  id, product_type, params_json, price_per_unit, updated_at
+User          — id, name, email, passwordHash, role, phone, telegram, isActive
+Client        — id, type(INDIVIDUAL/ENTREPRENEUR/COMPANY), name, phone, email,
+                contactPerson, inn, kpp, ogrn, ogrnip, legalAddress, director,
+                bik, bankName, bankAccount, corrAccount, comment
+Order         — id, number(auto), status, source, productType, title,
+                params(JSON), estimatedPrice, finalPrice, description,
+                managerNote, deliveryAddress, files(JSON),
+                deadline, clientId, managerId, contractorId,
+                calcRequest, calcRequestedAt, calcResponse, calcRespondedAt
+OrderStatus_History — orderId, status, comment, userId, createdAt
+Settings      — key, value (реквизиты компании-продавца)
 ```
+
+---
+
+## DaData интеграции
+
+Все запросы проксируются через backend (`/api/dadata/*`). Токен только на сервере.
+
+| Эндпоинт | Что делает |
+|---|---|
+| `GET /api/dadata/party?query=&type=` | Поиск компании/ИП по названию или ИНН |
+| `GET /api/dadata/party/:inn` | Детальная проверка контрагента по ИНН |
+| `GET /api/dadata/address?query=` | Автодополнение адреса |
+| `GET /api/dadata/bank?query=` | Поиск банка по БИК или названию |
 
 ---
 
 ## Роадмап разработки
 
-### Этап 1 — Фундамент (сейчас)
+### Этап 1 — Фундамент ✅
 - [x] CLAUDE.md — документация проекта
-- [ ] Схема БД (Prisma)
-- [ ] Backend: авторизация, базовые CRUD
-- [ ] Frontend: логин, дашборд менеджера
+- [x] Схема БД (Prisma): User, Client, Order, OrderStatus_History, Settings
+- [x] Миграции БД (4 миграции применены)
+- [x] Backend: JWT авторизация, middleware ролей
+- [x] Backend: CRUD заказов со статус-машиной и историей
+- [x] Backend: CRUD клиентов (физлицо / ИП / юрлицо)
+- [x] Backend: Управление пользователями (admin)
+- [x] Backend: Реквизиты компании (Settings)
+- [x] Frontend: Страница входа
+- [x] Frontend: Дашборд менеджера (статистика, последние заказы)
+- [x] Frontend: Список и фильтрация заказов
+- [x] Frontend: Карточка заказа (статусы, цех, переписка)
+- [x] Frontend: Список и карточка клиента
+- [x] Frontend: Управление пользователями (admin)
+- [x] Frontend: Настройки компании (admin)
 
-### Этап 2 — Заказы и калькуляторы
-- [ ] Форма создания заказа
-- [ ] Калькуляторы (визитки, баннеры, упаковка, сувениры)
-- [ ] Статусы заказа и история изменений
+### Этап 2 — Калькуляторы и DaData ✅
+- [x] Калькулятор визиток / листовок
+- [x] Калькулятор баннеров
+- [x] Калькулятор упаковки
+- [x] Калькулятор сувениров
+- [x] Калькулятор → автозаполнение формы нового заказа
+- [x] DaData: поиск контрагента по ИНН/названию (InnSearch)
+- [x] DaData: автодополнение адреса (AddressInput)
+- [x] DaData: поиск банка по БИК (BankSearch)
+- [x] Счёт на оплату (печатная форма / PDF)
+- [x] Адрес доставки в заказе
 
-### Этап 3 — Подрядчики
-- [ ] Кабинет цеха (видит свои задания)
-- [ ] Передача заказа подрядчику
-- [ ] Уведомления (внутри системы)
+### Этап 3 — Подрядчики (в работе)
+- [x] Список цехов с созданием через интерфейс
+- [x] Назначение цеха на заказ
+- [x] Передача заказа в цех (статус CALCULATING + сопроводительное сообщение)
+- [x] Ввод расчёта подрядчиком (цена + описание)
+- [ ] **Редактирование заказа** — после создания нельзя поправить поля
+- [ ] **Загрузка файлов** — поле в БД есть, UI нет (макеты, ТЗ, фото)
+- [ ] **Уведомления в Telegram** — оповещение цеха при новом задании
 
 ### Этап 4 — Деплой
-- [ ] Docker-конфигурация
-- [ ] Настройка VPS
-- [ ] Подключение домена + SSL
-- [ ] Первый боевой запуск
+- [x] Скрипт деплоя `deploy.sh` (Node.js, PostgreSQL, PM2)
+- [x] Конфиг Nginx (`nginx-rost.conf`, subpath `/rost`)
+- [x] Первый запуск на VPS (antonchernyshov.ru/rost)
+- [ ] **Docker + docker-compose** — для чистого воспроизводимого деплоя
+- [ ] **SSL / HTTPS** — сейчас HTTP
 
-### Этап 5 — Интеграции
-- [ ] Форма с сайта типографии → Теремка
-- [ ] Уведомления в Telegram
+### Этап 5 — Интеграции (планируется)
+- [ ] Ценовые правила в интерфейсе (сейчас цены захардкожены в калькуляторе)
+- [ ] Форма заказа с сайта типографии → Теремка
+- [ ] Уведомления в Telegram (бот)
+- [ ] Автоимпорт заявок из Email
+
+---
+
+## Переменные окружения
+
+```env
+# Backend (.env)
+DATABASE_URL=postgresql://teremka:password@localhost:5432/teremka
+JWT_SECRET=your-secret-key
+PORT=4000
+FRONTEND_URL=http://localhost:3000
+DADATA_TOKEN=your-dadata-token
+
+# Frontend (.env.local)
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
 
 ---
 
@@ -181,27 +248,15 @@ PriceRule (Правило ценообразования)
 ```bash
 # Backend
 cd backend && npm install
-npm run dev          # запуск в режиме разработки
-npm run migrate      # применить миграции БД
+npm run dev          # порт 4000
 
 # Frontend
 cd frontend && npm install
-npm run dev          # http://localhost:3000
+npm run dev          # порт 3000
 
-# Docker (продакшн)
-docker-compose up -d
-```
+# Применить миграции БД
+cd backend && npx prisma migrate deploy
 
----
-
-## Переменные окружения (.env)
-
-```env
-# Backend
-DATABASE_URL=postgresql://user:password@localhost:5432/teremka
-JWT_SECRET=your-secret-key
-PORT=4000
-
-# Frontend
-NEXT_PUBLIC_API_URL=http://localhost:4000
+# Деплой на VPS
+bash deploy.sh
 ```
