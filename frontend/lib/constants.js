@@ -11,12 +11,14 @@ export const ORDER_STATUS = {
 }
 
 export const ORDER_SOURCE = {
-  PHONE:     { label: 'Телефон', icon: '📞' },
-  WHATSAPP:  { label: 'WhatsApp', icon: '💬' },
-  EMAIL:     { label: 'Email', icon: '✉️' },
-  WEBSITE:   { label: 'Сайт', icon: '🌐' },
-  TELEGRAM:  { label: 'Telegram', icon: '✈️' },
-  OTHER:     { label: 'Другое', icon: '📋' },
+  PHONE:          { label: 'Телефон',               icon: '📞' },
+  WHATSAPP:       { label: 'WhatsApp',              icon: '💬' },
+  TELEGRAM:       { label: 'Telegram',              icon: '✈️' },
+  EMAIL:          { label: 'Email',                 icon: '✉️' },
+  WEBSITE:        { label: 'Сайт',                  icon: '🌐' },
+  REGULAR_CLIENT: { label: 'Постоянный клиент',     icon: '⭐' },
+  REFERRAL:       { label: 'Старый знакомый / Рекомендация', icon: '🤝' },
+  OTHER:          { label: 'Другое',                icon: '📋' },
 }
 
 export const PRODUCT_TYPE = {

@@ -137,7 +137,7 @@ router.patch('/:id', async (req, res) => {
 
   const allowed = [
     'title', 'params', 'description', 'deadline', 'estimatedPrice',
-    'finalPrice', 'managerNote', 'files',
+    'finalPrice', 'managerNote', 'files', 'contractorId',
   ]
   const data = {}
   for (const key of allowed) {

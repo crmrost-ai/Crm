@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
+import PhoneInput from '@/components/ui/PhoneInput'
 
 export default function ClientsPage() {
   const router = useRouter()
@@ -65,8 +66,8 @@ export default function ClientsPage() {
             </div>
             <div>
               <label className="label">Телефон</label>
-              <input className="input" placeholder="+7 (999) 000-00-00" value={form.phone}
-                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <PhoneInput value={form.phone}
+                onChange={v => setForm(f => ({ ...f, phone: v }))} />
             </div>
             <div>
               <label className="label">Email</label>

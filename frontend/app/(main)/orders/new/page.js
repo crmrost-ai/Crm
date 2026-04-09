@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { PRODUCT_TYPE, ORDER_SOURCE } from '@/lib/constants'
+import PhoneInput from '@/components/ui/PhoneInput'
+import DateQuickPick from '@/components/ui/DateQuickPick'
 
 export default function NewOrderPage() {
   const router = useRouter()
@@ -141,15 +143,10 @@ export default function NewOrderPage() {
                 onChange={e => set('estimatedPrice', e.target.value)}
               />
             </div>
-            <div>
-              <label className="label">Срок выполнения</label>
-              <input
-                type="date"
-                className="input"
-                value={form.deadline}
-                onChange={e => set('deadline', e.target.value)}
-              />
-            </div>
+            <DateQuickPick
+              value={form.deadline}
+              onChange={v => set('deadline', v)}
+            />
           </div>
 
           <div>
@@ -224,11 +221,9 @@ export default function NewOrderPage() {
                 </div>
                 <div>
                   <label className="label">Телефон</label>
-                  <input
-                    className="input"
-                    placeholder="+7 (999) 000-00-00"
+                  <PhoneInput
                     value={newClient.phone}
-                    onChange={e => setNewClient(c => ({ ...c, phone: e.target.value }))}
+                    onChange={v => setNewClient(c => ({ ...c, phone: v }))}
                   />
                 </div>
               </div>

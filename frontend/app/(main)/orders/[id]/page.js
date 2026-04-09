@@ -20,31 +20,56 @@ export default function OrderDetailPage({ params }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Send to contractor modal state
+  // Назначить подрядчика (без отправки на расчёт)
+  const [assignModal, setAssignModal] = useState(false)
+  const [assignContractor, setAssignContractor] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
+  // Передать в цех (с запросом расчёта)
   const [sendModal, setSendModal] = useState(false)
   const [selectedContractor, setSelectedContractor] = useState('')
   const [calcRequest, setCalcRequest] = useState('')
   const [sending, setSending] = useState(false)
 
-  // Calc response modal (for contractor)
+  // Ответ подрядчика
   const [responseModal, setResponseModal] = useState(false)
   const [calcResponse, setCalcResponse] = useState('')
   const [responsePrice, setResponsePrice] = useState('')
   const [responding, setResponding] = useState(false)
 
-  // Status change
+  // Смена статуса
   const [statusChanging, setStatusChanging] = useState(false)
-  const [statusComment, setStatusComment] = useState('')
 
   useEffect(() => {
-    Promise.all([
-      api.getOrder(params.id),
-      api.getContractors(),
-    ])
-      .then(([o, c]) => { setOrder(o); setContractors(c) })
+    Promise.all([api.getOrder(params.id), api.getContractors()])
+      .then(([o, c]) => {
+        setOrder(o)
+        setContractors(c)
+        if (o.contractorId) {
+          setAssignContractor(o.contractorId)
+          setSelectedContractor(o.contractorId)
+        }
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
   }, [params.id])
+
+  async function handleAssignContractor() {
+    if (!assignContractor) return
+    setAssigning(true)
+    try {
+      // Просто обновляем подрядчика через patch, без смены статуса
+      const updated = await api.updateOrder(order.id, { contractorId: assignContractor })
+      // Перезагружаем полные данные
+      const full = await api.getOrder(order.id)
+      setOrder(full)
+      setAssignModal(false)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   async function handleSendToContractor() {
     if (!selectedContractor) return
@@ -54,7 +79,6 @@ export default function OrderDetailPage({ params }) {
       setOrder(updated)
       setSendModal(false)
       setCalcRequest('')
-      setSelectedContractor('')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -82,9 +106,8 @@ export default function OrderDetailPage({ params }) {
   async function handleStatusChange(newStatus) {
     setStatusChanging(true)
     try {
-      const updated = await api.changeStatus(order.id, newStatus, statusComment)
+      const updated = await api.changeStatus(order.id, newStatus)
       setOrder(updated)
-      setStatusComment('')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -103,15 +126,14 @@ export default function OrderDetailPage({ params }) {
     ? (MANAGER_STATUS_FLOW[order.status] || [])
     : (CONTRACTOR_STATUS_FLOW[order.status] || [])
 
+  const contractorName = contractors.find(c => c.id === order.contractorId)?.name
+
   return (
     <div className="max-w-4xl">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <button
-            onClick={() => router.back()}
-            className="text-sm text-gray-400 hover:text-gray-600 mb-2"
-          >
+          <button onClick={() => router.back()} className="text-sm text-gray-400 hover:text-gray-600 mb-2">
             ← Назад
           </button>
           <div className="flex items-center gap-3 flex-wrap">
@@ -124,56 +146,51 @@ export default function OrderDetailPage({ params }) {
             {' · '}
             {ORDER_SOURCE[order.source]?.icon} {ORDER_SOURCE[order.source]?.label}
             {' · '}
-            Создан {format(new Date(order.createdAt), 'd MMMM yyyy', { locale: ru })}
+            {format(new Date(order.createdAt), 'd MMMM yyyy', { locale: ru })}
           </p>
         </div>
 
-        {/* Actions */}
+        {/* Кнопки действий */}
         <div className="flex gap-2 flex-wrap shrink-0">
-          {isManager && order.status === 'NEW' && (
-            <button
-              className="btn-primary"
-              onClick={() => setSendModal(true)}
-            >
-              Отправить на расчёт
+          {isManager && (
+            <button className="btn-secondary" onClick={() => setAssignModal(true)}>
+              {order.contractor ? `🏭 ${order.contractor.name}` : '+ Назначить цех'}
+            </button>
+          )}
+          {isManager && ['NEW', 'AGREED'].includes(order.status) && (
+            <button className="btn-primary" onClick={() => setSendModal(true)}>
+              Передать в цех
             </button>
           )}
           {isContractor && order.status === 'CALCULATING' && (
-            <button
-              className="btn-primary"
-              onClick={() => setResponseModal(true)}
-            >
+            <button className="btn-primary" onClick={() => setResponseModal(true)}>
               Ввести расчёт
             </button>
           )}
-          {availableStatuses.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {availableStatuses.map(s => (
-                <button
-                  key={s}
-                  className="btn-secondary btn-sm"
-                  disabled={statusChanging}
-                  onClick={() => handleStatusChange(s)}
-                >
-                  → {ORDER_STATUS[s]?.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {availableStatuses.map(s => (
+            <button
+              key={s}
+              className="btn-secondary btn-sm"
+              disabled={statusChanging}
+              onClick={() => handleStatusChange(s)}
+            >
+              → {ORDER_STATUS[s]?.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
           {error}
+          <button className="ml-3 underline" onClick={() => setError('')}>скрыть</button>
         </div>
       )}
 
       <div className="grid grid-cols-3 gap-5">
-        {/* Main info */}
+        {/* Основной блок */}
         <div className="col-span-2 space-y-4">
 
-          {/* Описание заказа */}
           <div className="card p-5">
             <h2 className="font-semibold text-gray-800 mb-3">Параметры заказа</h2>
             {order.description ? (
@@ -181,48 +198,38 @@ export default function OrderDetailPage({ params }) {
             ) : (
               <p className="text-sm text-gray-400">Описание не указано</p>
             )}
-
-            {/* Params JSON */}
             {order.params && Object.keys(order.params).length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(order.params).map(([k, v]) => (
-                    <div key={k} className="text-sm">
-                      <span className="text-gray-400">{k}: </span>
-                      <span className="text-gray-700">{String(v)}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2">
+                {Object.entries(order.params).map(([k, v]) => (
+                  <div key={k} className="text-sm">
+                    <span className="text-gray-400">{k}: </span>
+                    <span className="text-gray-700">{String(v)}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Запрос на расчёт / Ответ */}
+          {/* Переписка с цехом */}
           {(order.calcRequest || order.calcResponse) && (
             <div className="card p-5 space-y-4">
-              <h2 className="font-semibold text-gray-800">Расчёт</h2>
-
+              <h2 className="font-semibold text-gray-800">Переписка с цехом</h2>
               {order.calcRequest && (
                 <div>
-                  <div className="text-xs text-gray-400 mb-1">
-                    Запрос подрядчику — {order.contractor?.name}
-                    {order.calcRequestedAt && (
-                      <> · {format(new Date(order.calcRequestedAt), 'd MMM в HH:mm', { locale: ru })}</>
-                    )}
+                  <div className="text-xs text-gray-400 mb-1.5">
+                    ← Запрос в цех «{order.contractor?.name}»
+                    {order.calcRequestedAt && <> · {format(new Date(order.calcRequestedAt), 'd MMM, HH:mm', { locale: ru })}</>}
                   </div>
                   <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-gray-800 whitespace-pre-wrap">
                     {order.calcRequest}
                   </div>
                 </div>
               )}
-
               {order.calcResponse && (
                 <div>
-                  <div className="text-xs text-gray-400 mb-1">
-                    Ответ подрядчика
-                    {order.calcRespondedAt && (
-                      <> · {format(new Date(order.calcRespondedAt), 'd MMM в HH:mm', { locale: ru })}</>
-                    )}
+                  <div className="text-xs text-gray-400 mb-1.5">
+                    → Ответ цеха
+                    {order.calcRespondedAt && <> · {format(new Date(order.calcRespondedAt), 'd MMM, HH:mm', { locale: ru })}</>}
                   </div>
                   <div className="bg-green-50 border border-green-100 rounded-lg p-3 text-sm text-gray-800 whitespace-pre-wrap">
                     {order.calcResponse}
@@ -241,16 +248,14 @@ export default function OrderDetailPage({ params }) {
                   <div key={h.id} className="flex gap-3 text-sm">
                     <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-1.5 shrink-0" />
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <StatusBadge status={h.status} />
                         <span className="text-gray-400 text-xs">
-                          {format(new Date(h.createdAt), 'd MMM в HH:mm', { locale: ru })}
+                          {format(new Date(h.createdAt), 'd MMM, HH:mm', { locale: ru })}
                         </span>
                         <span className="text-gray-400 text-xs">{h.user?.name}</span>
                       </div>
-                      {h.comment && (
-                        <p className="text-gray-500 text-xs mt-0.5">{h.comment}</p>
-                      )}
+                      {h.comment && <p className="text-gray-500 text-xs mt-0.5">{h.comment}</p>}
                     </div>
                   </div>
                 ))}
@@ -259,10 +264,9 @@ export default function OrderDetailPage({ params }) {
           )}
         </div>
 
-        {/* Sidebar */}
+        {/* Боковая панель */}
         <div className="space-y-4">
 
-          {/* Клиент */}
           <div className="card p-4">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Клиент</h3>
             <div className="text-sm">
@@ -283,7 +287,6 @@ export default function OrderDetailPage({ params }) {
             </div>
           </div>
 
-          {/* Цены */}
           <div className="card p-4">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Стоимость</h3>
             <div className="space-y-2 text-sm">
@@ -302,25 +305,37 @@ export default function OrderDetailPage({ params }) {
             </div>
           </div>
 
-          {/* Подрядчик */}
           <div className="card p-4">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Подрядчик</h3>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Цех / Подрядчик</h3>
             {order.contractor ? (
               <div className="text-sm">
-                <div className="font-medium text-gray-900">{order.contractor.name}</div>
-                {order.contractor.phone && (
-                  <div className="text-gray-500">{order.contractor.phone}</div>
-                )}
-                {order.contractor.telegram && (
-                  <div className="text-blue-600">{order.contractor.telegram}</div>
+                <div className="font-medium text-gray-900">🏭 {order.contractor.name}</div>
+                {order.contractor.phone && <div className="text-gray-500 mt-1">{order.contractor.phone}</div>}
+                {order.contractor.telegram && <div className="text-blue-600">{order.contractor.telegram}</div>}
+                {isManager && (
+                  <button
+                    onClick={() => setAssignModal(true)}
+                    className="text-xs text-gray-400 hover:text-blue-600 mt-2 underline"
+                  >
+                    Изменить
+                  </button>
                 )}
               </div>
             ) : (
-              <div className="text-sm text-gray-400">Не назначен</div>
+              <div className="text-sm text-gray-400">
+                Не назначен
+                {isManager && (
+                  <button
+                    onClick={() => setAssignModal(true)}
+                    className="block text-blue-600 hover:underline mt-1 text-xs"
+                  >
+                    + Назначить
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Менеджер + Срок */}
           <div className="card p-4">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Детали</h3>
             <div className="text-sm space-y-2">
@@ -339,27 +354,57 @@ export default function OrderDetailPage({ params }) {
             </div>
           </div>
 
-          {/* Заметка менеджера */}
           {isManager && order.managerNote && (
             <div className="card p-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                Заметка менеджера
-              </h3>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Заметка</h3>
               <p className="text-sm text-gray-700">{order.managerNote}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* === Модалка: отправить на расчёт === */}
+      {/* === Модалка: назначить цех === */}
+      {assignModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Назначить цех</h2>
+            <p className="text-sm text-gray-500 mb-4">Цех будет виден в карточке заказа</p>
+            <select
+              className="input mb-4"
+              value={assignContractor}
+              onChange={e => setAssignContractor(e.target.value)}
+            >
+              <option value="">— выберите цех —</option>
+              {contractors.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-3">
+              <button
+                className="btn-primary flex-1"
+                disabled={!assignContractor || assigning}
+                onClick={handleAssignContractor}
+              >
+                {assigning ? 'Сохранение...' : 'Назначить'}
+              </button>
+              <button className="btn-secondary" onClick={() => setAssignModal(false)}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === Модалка: передать в цех на расчёт === */}
       {sendModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Отправить на расчёт</h2>
-
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Передать в цех</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Цех получит заказ и должен будет ввести стоимость и сроки производства.
+              Статус изменится на «На расчёте».
+            </p>
             <div className="space-y-4">
               <div>
-                <label className="label">Выберите подрядчика (цех) *</label>
+                <label className="label">Цех *</label>
                 <select
                   className="input"
                   value={selectedContractor}
@@ -371,58 +416,50 @@ export default function OrderDetailPage({ params }) {
                   ))}
                 </select>
               </div>
-
               <div>
-                <label className="label">Текст запроса (необязательно)</label>
+                <label className="label">Сопроводительное сообщение (необязательно)</label>
                 <textarea
                   className="input resize-none"
                   rows={4}
-                  placeholder="Уточнения, вопросы для подрядчика..."
+                  placeholder="Уточнения, особые пожелания для цеха..."
                   value={calcRequest}
                   onChange={e => setCalcRequest(e.target.value)}
                 />
               </div>
             </div>
-
             <div className="flex gap-3 mt-5">
               <button
                 className="btn-primary flex-1"
                 disabled={!selectedContractor || sending}
                 onClick={handleSendToContractor}
               >
-                {sending ? 'Отправка...' : 'Отправить'}
+                {sending ? 'Передаём...' : 'Передать'}
               </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setSendModal(false)}
-              >
-                Отмена
-              </button>
+              <button className="btn-secondary" onClick={() => setSendModal(false)}>Отмена</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* === Модалка: ввод расчёта (подрядчик) === */}
+      {/* === Модалка: ввод расчёта подрядчиком === */}
       {responseModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Ввести расчёт</h2>
             <p className="text-sm text-gray-500 mb-4">Заказ: {order.title}</p>
-
             <div className="space-y-4">
               <div>
-                <label className="label">Ответ / расчёт *</label>
+                <label className="label">Стоимость и условия *</label>
                 <textarea
                   className="input resize-none"
                   rows={5}
-                  placeholder="Опишите стоимость, сроки, условия..."
+                  placeholder="Опишите стоимость, сроки производства, условия..."
                   value={calcResponse}
                   onChange={e => setCalcResponse(e.target.value)}
                 />
               </div>
               <div>
-                <label className="label">Сумма (₽)</label>
+                <label className="label">Итоговая сумма (₽)</label>
                 <input
                   type="number"
                   className="input"
@@ -432,21 +469,15 @@ export default function OrderDetailPage({ params }) {
                 />
               </div>
             </div>
-
             <div className="flex gap-3 mt-5">
               <button
                 className="btn-primary flex-1"
                 disabled={!calcResponse || responding}
                 onClick={handleCalcResponse}
               >
-                {responding ? 'Отправка...' : 'Отправить расчёт'}
+                {responding ? 'Отправка...' : 'Отправить менеджеру'}
               </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setResponseModal(false)}
-              >
-                Отмена
-              </button>
+              <button className="btn-secondary" onClick={() => setResponseModal(false)}>Отмена</button>
             </div>
           </div>
         </div>

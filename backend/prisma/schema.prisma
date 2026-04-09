@@ -26,12 +26,14 @@ enum OrderStatus {
 }
 
 enum OrderSource {
-  PHONE
-  WHATSAPP
-  EMAIL
-  WEBSITE
-  TELEGRAM
-  OTHER
+  PHONE           // Телефон
+  WHATSAPP        // WhatsApp
+  EMAIL           // Email
+  WEBSITE         // Сайт
+  TELEGRAM        // Telegram
+  REGULAR_CLIENT  // Постоянный клиент
+  REFERRAL        // Старый знакомый / По рекомендации
+  OTHER           // Другое
 }
 
 enum ProductType {
