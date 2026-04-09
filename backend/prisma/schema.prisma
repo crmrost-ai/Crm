@@ -64,13 +64,31 @@ model User {
   @@map("users")
 }
 
+enum ClientType {
+  INDIVIDUAL   // Физлицо
+  ENTREPRENEUR // ИП
+  COMPANY      // Юрлицо
+}
+
 model Client {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  company   String?
-  comment   String?
+  id   String     @id @default(cuid())
+  type ClientType @default(INDIVIDUAL)
+
+  // Основные данные
+  name          String   // Имя / Название компании
+  phone         String?
+  email         String?
+  contactPerson String?  @map("contact_person") // Контактное лицо (для юрлиц)
+  comment       String?
+
+  // Реквизиты (ИП и Юрлица)
+  inn          String?  // ИНН: 10 цифр (юрлицо) или 12 (ИП)
+  kpp          String?  // КПП — только юрлицо
+  ogrn         String?  // ОГРН — юрлицо
+  ogrnip       String?  // ОГРНИП — ИП
+  legalAddress String?  @map("legal_address")  // Юридический адрес
+  director     String?  // Руководитель / ФИО ИП
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

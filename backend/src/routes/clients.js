@@ -8,16 +8,18 @@ router.use(requireAuth)
 
 // GET /api/clients
 router.get('/', async (req, res) => {
-  const { search, page = 1, limit = 50 } = req.query
+  const { search, type, page = 1, limit = 50 } = req.query
   const skip = (Number(page) - 1) * Number(limit)
 
   const where = {}
+  if (type) where.type = type
   if (search) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
       { phone: { contains: search } },
       { email: { contains: search, mode: 'insensitive' } },
-      { company: { contains: search, mode: 'insensitive' } },
+      { contactPerson: { contains: search, mode: 'insensitive' } },
+      { inn: { contains: search } },
     ]
   }
 
@@ -50,21 +52,36 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/clients
 router.post('/', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
-  const { name, phone, email, company, comment } = req.body
-  if (!name) return res.status(400).json({ error: 'Имя клиента обязательно' })
+  const {
+    type = 'INDIVIDUAL',
+    name, phone, email, contactPerson, comment,
+    inn, kpp, ogrn, ogrnip, legalAddress, director,
+  } = req.body
+
+  if (!name) return res.status(400).json({ error: 'Имя / название обязательно' })
 
   const client = await prisma.client.create({
-    data: { name, phone, email, company, comment },
+    data: {
+      type, name, phone, email, contactPerson, comment,
+      inn, kpp, ogrn, ogrnip, legalAddress, director,
+    },
   })
   res.status(201).json(client)
 })
 
 // PATCH /api/clients/:id
 router.patch('/:id', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
-  const { name, phone, email, company, comment } = req.body
+  const {
+    name, phone, email, contactPerson, comment,
+    inn, kpp, ogrn, ogrnip, legalAddress, director, type,
+  } = req.body
+
   const client = await prisma.client.update({
     where: { id: req.params.id },
-    data: { name, phone, email, company, comment },
+    data: {
+      name, phone, email, contactPerson, comment,
+      inn, kpp, ogrn, ogrnip, legalAddress, director, type,
+    },
   })
   res.json(client)
 })

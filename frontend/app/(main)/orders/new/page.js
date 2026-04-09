@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { PRODUCT_TYPE, ORDER_SOURCE } from '@/lib/constants'
-import PhoneInput from '@/components/ui/PhoneInput'
 import DateQuickPick from '@/components/ui/DateQuickPick'
+import ClientForm from '@/components/orders/ClientForm'
 
 export default function NewOrderPage() {
   const router = useRouter()
@@ -28,7 +28,9 @@ export default function NewOrderPage() {
   })
 
   const [newClient, setNewClient] = useState({
-    name: '', phone: '', email: '', company: '',
+    type: 'INDIVIDUAL', name: '', phone: '', email: '',
+    inn: '', kpp: '', ogrn: '', ogrnip: '', legalAddress: '', director: '',
+    contactPerson: '', comment: '',
   })
 
   useEffect(() => {
@@ -179,15 +181,13 @@ export default function NewOrderPage() {
               <label className="label">Поиск клиента</label>
               <input
                 className="input mb-2"
-                placeholder="Имя, телефон, компания..."
+                placeholder="Имя, телефон, ИНН..."
                 value={clientSearch}
                 onChange={e => setClientSearch(e.target.value)}
               />
-              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-52 overflow-y-auto">
                 {clients.length === 0 ? (
-                  <div className="p-3 text-sm text-gray-400 text-center">
-                    Клиентов не найдено
-                  </div>
+                  <div className="p-3 text-sm text-gray-400 text-center">Клиентов не найдено</div>
                 ) : (
                   clients.map(c => (
                     <button
@@ -200,7 +200,7 @@ export default function NewOrderPage() {
                     >
                       <div className="font-medium">{c.name}</div>
                       <div className="text-xs text-gray-400">
-                        {[c.phone, c.company].filter(Boolean).join(' · ')}
+                        {[c.phone, c.inn ? `ИНН ${c.inn}` : null].filter(Boolean).join(' · ')}
                       </div>
                     </button>
                   ))
@@ -208,47 +208,7 @@ export default function NewOrderPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Имя *</label>
-                  <input
-                    className="input"
-                    placeholder="Иванов Иван"
-                    value={newClient.name}
-                    onChange={e => setNewClient(c => ({ ...c, name: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="label">Телефон</label>
-                  <PhoneInput
-                    value={newClient.phone}
-                    onChange={v => setNewClient(c => ({ ...c, phone: v }))}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Email</label>
-                  <input
-                    type="email"
-                    className="input"
-                    placeholder="ivan@example.ru"
-                    value={newClient.email}
-                    onChange={e => setNewClient(c => ({ ...c, email: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="label">Компания</label>
-                  <input
-                    className="input"
-                    placeholder="ООО «Пример»"
-                    value={newClient.company}
-                    onChange={e => setNewClient(c => ({ ...c, company: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
+            <ClientForm value={newClient} onChange={setNewClient} />
           )}
         </div>
 

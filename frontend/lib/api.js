@@ -64,6 +64,12 @@ export const api = {
   createClient: (data) => request('/clients', { method: 'POST', body: JSON.stringify(data) }),
   updateClient: (id, data) => request(`/clients/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
+  // DaData
+  searchParty: (query, type) => {
+    const q = new URLSearchParams({ query, ...(type ? { type } : {}) }).toString()
+    return request(`/dadata/party?${q}`)
+  },
+
   // Users
   getContractors: () => request('/users/contractors'),
   getUsers: () => request('/users'),

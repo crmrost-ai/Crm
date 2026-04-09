@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth')
 const ordersRoutes = require('./routes/orders')
 const clientsRoutes = require('./routes/clients')
 const usersRoutes = require('./routes/users')
+const dadataRoutes = require('./routes/dadata')
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -20,6 +21,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/orders', ordersRoutes)
 app.use('/api/clients', clientsRoutes)
 app.use('/api/users', usersRoutes)
+app.use('/api/dadata', dadataRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
