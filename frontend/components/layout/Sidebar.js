@@ -6,10 +6,13 @@ import { logout, getUser } from '@/lib/auth'
 import clsx from 'clsx'
 
 const NAV_MANAGER = [
-  { href: '/dashboard',   label: 'Дашборд',   icon: '📊' },
-  { href: '/orders',      label: 'Заказы',    icon: '📋' },
-  { href: '/orders/new',  label: '+ Новый заказ', icon: null, accent: true },
-  { href: '/clients',     label: 'Клиенты',   icon: '👥' },
+  { href: '/dashboard',    label: 'Дашборд',          icon: '📊' },
+  { href: '/orders',       label: 'Заказы',           icon: '📋' },
+  { href: '/orders/new',   label: '+ Новый заказ',    icon: null, accent: true },
+  { href: '/clients',      label: 'Клиенты',          icon: '👥' },
+  { divider: true },
+  { href: '/contractors',  label: 'Цеха',             icon: '🏭' },
+  { href: '/products',     label: 'Каталог продукции',icon: '🗂️' },
 ]
 
 const NAV_CONTRACTOR = [
@@ -17,10 +20,14 @@ const NAV_CONTRACTOR = [
 ]
 
 const NAV_ADMIN = [
-  { href: '/dashboard',     label: 'Дашборд',       icon: '📊' },
-  { href: '/orders',        label: 'Все заказы',    icon: '📋' },
-  { href: '/clients',       label: 'Клиенты',       icon: '👥' },
-  { href: '/admin/users',   label: 'Пользователи',  icon: '👤' },
+  { href: '/dashboard',    label: 'Дашборд',          icon: '📊' },
+  { href: '/orders',       label: 'Все заказы',       icon: '📋' },
+  { href: '/clients',      label: 'Клиенты',          icon: '👥' },
+  { divider: true },
+  { href: '/contractors',  label: 'Цеха',             icon: '🏭' },
+  { href: '/products',     label: 'Каталог продукции',icon: '🗂️' },
+  { divider: true },
+  { href: '/admin/users',  label: 'Пользователи',     icon: '👤' },
 ]
 
 export default function Sidebar() {
@@ -49,23 +56,28 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {nav.map(item => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={clsx(
-              'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
-              item.accent
-                ? 'bg-blue-600 text-white hover:bg-blue-700 font-medium mt-2'
-                : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href !== '/orders/new')
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'
-            )}
-          >
-            {item.icon && <span>{item.icon}</span>}
-            {item.label}
-          </Link>
-        ))}
+        {nav.map((item, i) => {
+          if (item.divider) return (
+            <div key={i} className="my-2 border-t border-gray-100" />
+          )
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(
+                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                item.accent
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 font-medium mt-2'
+                  : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href !== '/orders/new')
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              {item.icon && <span>{item.icon}</span>}
+              {item.label}
+            </Link>
+          )
+        })}
       </nav>
 
       {/* User */}

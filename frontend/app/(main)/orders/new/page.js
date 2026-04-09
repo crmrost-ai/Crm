@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { PRODUCT_TYPE, ORDER_SOURCE } from '@/lib/constants'
 
 export default function NewOrderPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [clients, setClients] = useState([])
   const [clientSearch, setClientSearch] = useState('')
   const [showNewClient, setShowNewClient] = useState(false)
@@ -15,7 +16,7 @@ export default function NewOrderPage() {
 
   const [form, setForm] = useState({
     source: 'PHONE',
-    productType: 'BUSINESS_CARDS',
+    productType: searchParams.get('productType') || 'BUSINESS_CARDS',
     title: '',
     description: '',
     estimatedPrice: '',
