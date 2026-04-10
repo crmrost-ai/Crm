@@ -102,6 +102,27 @@ export const api = {
   getSettings: () => request('/settings'),
   updateSettings: (data) => request('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
 
+  // Calc prices
+  getCalcPrices: async () => {
+    const { CALC_DEFAULTS } = await import('./calcDefaults')
+    const s = await request('/settings')
+    return {
+      business_cards: s.calc_business_cards ? JSON.parse(s.calc_business_cards) : CALC_DEFAULTS.business_cards,
+      banners:        s.calc_banners        ? JSON.parse(s.calc_banners)        : CALC_DEFAULTS.banners,
+      packaging:      s.calc_packaging      ? JSON.parse(s.calc_packaging)      : CALC_DEFAULTS.packaging,
+      souvenirs:      s.calc_souvenirs      ? JSON.parse(s.calc_souvenirs)      : CALC_DEFAULTS.souvenirs,
+    }
+  },
+  updateCalcPrices: (config) => request('/settings', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      calc_business_cards: JSON.stringify(config.business_cards),
+      calc_banners:        JSON.stringify(config.banners),
+      calc_packaging:      JSON.stringify(config.packaging),
+      calc_souvenirs:      JSON.stringify(config.souvenirs),
+    }),
+  }),
+
   // Users
   getContractors: () => request('/users/contractors'),
   getUsers: () => request('/users'),

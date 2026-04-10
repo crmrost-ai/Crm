@@ -30,6 +30,7 @@ const NAV_ADMIN = [
   { href: '/products',     label: 'Каталог продукции',icon: '🗂️' },
   { divider: true },
   { href: '/admin/users',    label: 'Пользователи',   icon: '👤' },
+  { href: '/admin/prices',   label: 'Цены',           icon: '💰' },
   { href: '/admin/settings', label: 'Настройки',      icon: '⚙️' },
 ]
 

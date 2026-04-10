@@ -10,6 +10,8 @@ const SETTING_KEYS = [
   'legalAddress', 'actualAddress', 'director', 'directorTitle',
   'bik', 'bankName', 'bankAccount', 'corrAccount',
   'phone', 'email', 'website',
+  // Конфиги калькулятора (хранятся как JSON-строки)
+  'calc_business_cards', 'calc_banners', 'calc_packaging', 'calc_souvenirs',
 ]
 
 router.use(requireAuth)
