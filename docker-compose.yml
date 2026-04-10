@@ -12,8 +12,6 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U teremka"]
       interval: 5s
@@ -34,6 +32,10 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       PORT: 4000
       FRONTEND_URL: ${FRONTEND_URL}
+      DADATA_TOKEN: ${DADATA_TOKEN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "4000:4000"
 
@@ -41,14 +43,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_BASE_PATH: ${NEXT_BASE_PATH:-/rost}
+        NEXT_PUBLIC_API_URL: ${BACKEND_URL}
     container_name: teremka_frontend
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      NEXT_PUBLIC_API_URL: ${BACKEND_URL}
     ports:
-      - "3000:3000"
+      - "3001:3000"
 
 volumes:
   db_data:
+  uploads_data:
