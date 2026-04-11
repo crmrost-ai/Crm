@@ -5,13 +5,15 @@ import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import StatusBadge from '@/components/ui/StatusBadge'
-import { ORDER_STATUS, PRODUCT_TYPE, ORDER_SOURCE } from '@/lib/constants'
+import { ORDER_STATUS, ORDER_SOURCE } from '@/lib/constants'
+import { useProductTypes } from '@/lib/productTypes'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
 export default function OrdersPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const PRODUCT_TYPE = useProductTypes()
 
   const [orders, setOrders] = useState([])
   const [total, setTotal] = useState(0)

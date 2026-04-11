@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { getUser } from '@/lib/auth'
 import StatusBadge from '@/components/ui/StatusBadge'
-import { ORDER_STATUS, PRODUCT_TYPE, ORDER_SOURCE } from '@/lib/constants'
+import { ORDER_STATUS, ORDER_SOURCE } from '@/lib/constants'
+import { useProductTypes } from '@/lib/productTypes'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
@@ -27,6 +28,7 @@ function StatCard({ label, value, color = 'blue', href }) {
 
 export default function DashboardPage() {
   const user = getUser()
+  const PRODUCT_TYPE = useProductTypes()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
 

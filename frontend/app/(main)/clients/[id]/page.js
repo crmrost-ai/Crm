@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { getUser } from '@/lib/auth'
 import ClientForm from '@/components/orders/ClientForm'
 import StatusBadge from '@/components/ui/StatusBadge'
-import { PRODUCT_TYPE } from '@/lib/constants'
+import { useProductTypes } from '@/lib/productTypes'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
@@ -19,6 +19,7 @@ const TYPE_LABEL = {
 export default function ClientDetailPage({ params }) {
   const router = useRouter()
   const user = getUser()
+  const PRODUCT_TYPE = useProductTypes()
   const isManager = user?.role === 'MANAGER' || user?.role === 'ADMIN'
 
   const [client, setClient] = useState(null)

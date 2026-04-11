@@ -12,6 +12,8 @@ const SETTING_KEYS = [
   'phone', 'email', 'website',
   // Конфиги калькулятора (хранятся как JSON-строки)
   'calc_business_cards', 'calc_banners', 'calc_packaging', 'calc_souvenirs',
+  // Каталог типов продукции
+  'catalog_product_types',
 ]
 
 router.use(requireAuth)

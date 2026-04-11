@@ -9,9 +9,10 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import DateQuickPick from '@/components/ui/DateQuickPick'
 import AddressInput from '@/components/ui/AddressInput'
 import {
-  ORDER_STATUS, PRODUCT_TYPE, ORDER_SOURCE,
+  ORDER_STATUS, ORDER_SOURCE,
   MANAGER_STATUS_FLOW, CONTRACTOR_STATUS_FLOW,
 } from '@/lib/constants'
+import { useProductTypes } from '@/lib/productTypes'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
@@ -223,6 +224,7 @@ export default function OrderDetailPage({ params }) {
   if (error && !order) return <div className="text-red-500 text-sm p-4">{error}</div>
   if (!order) return null
 
+  const PRODUCT_TYPE = useProductTypes()
   const isManager = user?.role === 'MANAGER' || user?.role === 'ADMIN'
   const isContractor = user?.role === 'CONTRACTOR'
 

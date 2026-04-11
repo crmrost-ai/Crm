@@ -1,7 +1,7 @@
 'use client'
 
-import { PRODUCT_TYPE } from '@/lib/constants'
 import Link from 'next/link'
+import { useProductTypes } from '@/lib/productTypes'
 
 // Описание каждого типа продукции с параметрами
 const PRODUCT_INFO = {
@@ -50,6 +50,7 @@ const PRODUCT_INFO = {
 }
 
 export default function ProductsPage() {
+  const PRODUCT_TYPE = useProductTypes()
   return (
     <div>
       <div className="mb-6">

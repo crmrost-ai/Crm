@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
-import { PRODUCT_TYPE, ORDER_SOURCE } from '@/lib/constants'
+import { ORDER_SOURCE } from '@/lib/constants'
+import { useProductTypes } from '@/lib/productTypes'
 import DateQuickPick from '@/components/ui/DateQuickPick'
 import AddressInput from '@/components/ui/AddressInput'
 import ClientForm from '@/components/orders/ClientForm'
@@ -11,6 +12,7 @@ import ClientForm from '@/components/orders/ClientForm'
 export default function NewOrderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const PRODUCT_TYPE = useProductTypes()
   const [clients, setClients] = useState([])
   const [clientSearch, setClientSearch] = useState('')
   const [showNewClient, setShowNewClient] = useState(false)
