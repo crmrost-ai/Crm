@@ -45,9 +45,12 @@ export default function NewOrderPage() {
   })
 
   useEffect(() => {
-    api.getClients({ search: clientSearch, limit: 20 })
-      .then(d => setClients(d.clients || []))
-      .catch(console.error)
+    const timer = setTimeout(() => {
+      api.getClients({ search: clientSearch, limit: 20 })
+        .then(d => setClients(d.clients || []))
+        .catch(console.error)
+    }, 300)
+    return () => clearTimeout(timer)
   }, [clientSearch])
 
   function set(field, value) {

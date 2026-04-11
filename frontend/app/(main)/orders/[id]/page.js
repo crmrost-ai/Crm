@@ -59,10 +59,15 @@ export default function OrderDetailPage({ params }) {
 
   // Смена статуса
   const [statusChanging, setStatusChanging] = useState(false)
+  const [statusSaved, setStatusSaved] = useState(false)
+
+  // Редактирование — сохранено
+  const [editSaved, setEditSaved] = useState(false)
 
   // Файлы
   const fileRef = useRef(null)
   const [uploading, setUploading] = useState(false)
+  const MAX_FILE_SIZE = 50 * 1024 * 1024
 
   useEffect(() => {
     Promise.all([api.getOrder(params.id), api.getContractors()])
@@ -96,17 +101,17 @@ export default function OrderDetailPage({ params }) {
   async function handleSaveEdit() {
     setEditSaving(true)
     try {
-      const full = await api.getOrder(params.id)
-      setOrder(full)
       await api.updateOrder(order.id, {
         ...editForm,
-        estimatedPrice: editForm.estimatedPrice ? Number(editForm.estimatedPrice) : undefined,
-        finalPrice: editForm.finalPrice ? Number(editForm.finalPrice) : undefined,
-        deadline: editForm.deadline || undefined,
+        estimatedPrice: editForm.estimatedPrice ? Number(editForm.estimatedPrice) : null,
+        finalPrice: editForm.finalPrice ? Number(editForm.finalPrice) : null,
+        deadline: editForm.deadline || null,
       })
       const updated = await api.getOrder(params.id)
       setOrder(updated)
       setEditMode(false)
+      setEditSaved(true)
+      setTimeout(() => setEditSaved(false), 2500)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -179,6 +184,8 @@ export default function OrderDetailPage({ params }) {
     try {
       const updated = await api.changeStatus(order.id, newStatus)
       setOrder(updated)
+      setStatusSaved(true)
+      setTimeout(() => setStatusSaved(false), 2500)
     } catch (e) { setError(e.message) }
     finally { setStatusChanging(false) }
   }
@@ -187,6 +194,11 @@ export default function OrderDetailPage({ params }) {
   async function handleFileUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`Файл слишком большой: ${fmtSize(file.size)}. Максимум 50 МБ`)
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
     setUploading(true)
     try {
       await api.uploadFile(order.id, file)
@@ -280,6 +292,12 @@ export default function OrderDetailPage({ params }) {
           ))}
         </div>
       </div>
+
+      {(editSaved || statusSaved) && (
+        <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg mb-4">
+          {editSaved ? 'Заказ сохранён' : 'Статус обновлён'}
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">

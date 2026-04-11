@@ -7,6 +7,37 @@ const prisma = new PrismaClient()
 
 router.use(requireAuth)
 
+// Допустимые переходы статусов по ролям
+const ALL_STATUSES = ['NEW', 'CALCULATING', 'CALCULATED', 'AGREED', 'IN_PRODUCTION', 'READY', 'DELIVERED', 'CLOSED', 'CANCELLED']
+
+const MANAGER_TRANSITIONS = {
+  CALCULATED:    ['AGREED', 'CANCELLED'],
+  AGREED:        ['IN_PRODUCTION', 'CANCELLED'],
+  IN_PRODUCTION: ['CANCELLED'],
+  READY:         ['DELIVERED', 'CANCELLED'],
+  DELIVERED:     ['CLOSED', 'CANCELLED'],
+  NEW:           ['CANCELLED'],
+  CALCULATING:   ['CANCELLED'],
+  CLOSED:        [],
+  CANCELLED:     [],
+}
+
+const CONTRACTOR_TRANSITIONS = {
+  IN_PRODUCTION: ['READY'],
+}
+
+function checkStatusTransition(role, currentStatus, newStatus) {
+  if (!ALL_STATUSES.includes(newStatus)) return 'Неверный статус'
+  if (role === 'ADMIN') return null
+  const allowed = role === 'CONTRACTOR'
+    ? (CONTRACTOR_TRANSITIONS[currentStatus] || [])
+    : (MANAGER_TRANSITIONS[currentStatus] || [])
+  if (!allowed.includes(newStatus)) {
+    return `Нельзя перевести заказ из "${currentStatus}" в "${newStatus}"`
+  }
+  return null
+}
+
 // GET /api/orders
 router.get('/', async (req, res) => {
   const { status, productType, source, contractorId, search, page = 1, limit = 20 } = req.query
@@ -14,13 +45,20 @@ router.get('/', async (req, res) => {
 
   const where = {}
 
-  if (req.user.role === 'MANAGER') where.managerId = req.user.id
-  else if (req.user.role === 'CONTRACTOR') where.contractorId = req.user.id
+  // Менеджер видит только свои заказы, подрядчик — только свои
+  // Фильтр по contractorId из запроса доступен только ADMIN
+  if (req.user.role === 'MANAGER') {
+    where.managerId = req.user.id
+  } else if (req.user.role === 'CONTRACTOR') {
+    where.contractorId = req.user.id // нельзя переопределить через query param
+  } else {
+    // ADMIN
+    if (contractorId) where.contractorId = contractorId
+  }
 
   if (status) where.status = status
   if (productType) where.productType = productType
   if (source) where.source = source
-  if (contractorId) where.contractorId = contractorId
 
   if (search) {
     where.OR = [
@@ -114,6 +152,10 @@ router.patch('/:id', async (req, res) => {
   const order = await prisma.order.findUnique({ where: { id: req.params.id } })
   if (!order) return res.status(404).json({ error: 'Заказ не найден' })
 
+  // Подрядчик не может редактировать заказ
+  if (req.user.role === 'CONTRACTOR')
+    return res.status(403).json({ error: 'Подрядчик не может редактировать заказ' })
+
   if (req.user.role === 'MANAGER' && order.managerId !== req.user.id)
     return res.status(403).json({ error: 'Нет доступа' })
 
@@ -127,8 +169,15 @@ router.patch('/:id', async (req, res) => {
     if (req.body[key] !== undefined) data[key] = req.body[key]
   }
   if (data.deadline) data.deadline = new Date(data.deadline)
-  if (data.estimatedPrice) data.estimatedPrice = Number(data.estimatedPrice)
-  if (data.finalPrice) data.finalPrice = Number(data.finalPrice)
+  if (data.estimatedPrice !== undefined) data.estimatedPrice = data.estimatedPrice ? Number(data.estimatedPrice) : null
+  if (data.finalPrice !== undefined) data.finalPrice = data.finalPrice ? Number(data.finalPrice) : null
+
+  // Валидация contractorId если передан
+  if (data.contractorId) {
+    const contractor = await prisma.user.findUnique({ where: { id: data.contractorId } })
+    if (!contractor || contractor.role !== 'CONTRACTOR')
+      return res.status(400).json({ error: 'Подрядчик не найден' })
+  }
 
   const updated = await prisma.order.update({
     where: { id: req.params.id },
@@ -167,6 +216,10 @@ router.post('/:id/status', async (req, res) => {
   if (req.user.role === 'CONTRACTOR' && order.contractorId !== req.user.id)
     return res.status(403).json({ error: 'Нет доступа' })
 
+  // Проверка допустимости перехода статуса
+  const transitionError = checkStatusTransition(req.user.role, order.status, status)
+  if (transitionError) return res.status(400).json({ error: transitionError })
+
   const [updated] = await prisma.$transaction([
     prisma.order.update({
       where: { id: req.params.id },
@@ -189,7 +242,8 @@ router.post('/:id/status', async (req, res) => {
 
   // Уведомить менеджера если статус меняет подрядчик
   if (req.user.role === 'CONTRACTOR') {
-    tg.notifyManagerStatusChange(order.manager, order, status, order.contractor).catch(() => {})
+    tg.notifyManagerStatusChange(order.manager, order, status, order.contractor)
+      .catch(e => console.error('Telegram notify failed:', e.message))
   }
 
   res.json(updated)
@@ -240,8 +294,8 @@ router.post('/:id/send-to-contractor', requireRole('MANAGER', 'ADMIN'), async (r
     }),
   ])
 
-  // Уведомить подрядчика в Telegram
-  tg.notifyContractorNewJob(contractor, { ...order, number: order.number, title: order.title, calcRequest }).catch(() => {})
+  tg.notifyContractorNewJob(contractor, { ...order, number: order.number, title: order.title, calcRequest })
+    .catch(e => console.error('Telegram notify failed:', e.message))
 
   res.json(updated)
 })
@@ -293,12 +347,11 @@ router.post('/:id/calc-response', requireRole('CONTRACTOR', 'ADMIN'), async (req
     }),
   ])
 
-  // Уведомить менеджера
   tg.notifyManagerCalcReceived(
     order.manager,
     { ...order, estimatedPrice: estimatedPrice ? Number(estimatedPrice) : order.estimatedPrice, calcResponse },
     order.contractor
-  ).catch(() => {})
+  ).catch(e => console.error('Telegram notify failed:', e.message))
 
   res.json(updated)
 })

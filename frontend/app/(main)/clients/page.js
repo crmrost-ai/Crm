@@ -25,7 +25,9 @@ export default function ClientsPage() {
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const LIMIT = 50
 
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState(EMPTY_CLIENT)
@@ -33,12 +35,16 @@ export default function ClientsPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    setPage(1)
+  }, [search, filterType])
+
+  useEffect(() => {
     setLoading(true)
-    api.getClients({ search, type: filterType, limit: 50 })
+    api.getClients({ search, type: filterType, limit: LIMIT, page })
       .then(d => { setClients(d.clients || []); setTotal(d.total || 0) })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [search, filterType])
+  }, [search, filterType, page])
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -104,6 +110,7 @@ export default function ClientsPage() {
 
       {/* Список */}
       <div className="card overflow-hidden">
+
         {loading ? (
           <div className="p-8 text-center text-gray-400 text-sm">Загрузка...</div>
         ) : clients.length === 0 ? (
@@ -156,6 +163,29 @@ export default function ClientsPage() {
           </table>
         )}
       </div>
+
+      {/* Пагинация */}
+      {total > LIMIT && (
+        <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+          <span>Показано {Math.min((page - 1) * LIMIT + 1, total)}–{Math.min(page * LIMIT, total)} из {total}</span>
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary"
+              disabled={page === 1}
+              onClick={() => setPage(p => p - 1)}
+            >
+              ← Назад
+            </button>
+            <button
+              className="btn-secondary"
+              disabled={page * LIMIT >= total}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Вперёд →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
