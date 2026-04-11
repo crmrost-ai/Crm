@@ -278,12 +278,13 @@ export default function CalculatorPage() {
   const [tab, setTab] = useState('BUSINESS_CARDS')
   const [prices, setPrices] = useState(CALC_DEFAULTS)
   const [loadingPrices, setLoadingPrices] = useState(true)
+  const [usingDefaults, setUsingDefaults] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     api.getCalcPrices()
       .then(p => setPrices(p))
-      .catch(() => {}) // fallback to defaults
+      .catch(() => setUsingDefaults(true))
       .finally(() => setLoadingPrices(false))
   }, [])
 
@@ -301,6 +302,12 @@ export default function CalculatorPage() {
         <h1 className="text-2xl font-bold text-gray-900">Калькулятор</h1>
         <p className="text-sm text-gray-500 mt-0.5">Рассчитайте стоимость и сразу создайте заявку</p>
       </div>
+
+      {usingDefaults && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm px-4 py-3 rounded-xl mb-4">
+          Используются стандартные цены — не удалось загрузить настроенные
+        </div>
+      )}
 
       {/* Вкладки */}
       <div className="flex gap-2 mb-5 flex-wrap">

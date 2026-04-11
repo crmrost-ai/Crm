@@ -1,3 +1,5 @@
+import { CALC_DEFAULTS } from './calcDefaults'
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 function getToken() {
@@ -104,7 +106,6 @@ export const api = {
 
   // Calc prices
   getCalcPrices: async () => {
-    const { CALC_DEFAULTS } = await import('./calcDefaults')
     const s = await request('/settings')
     return {
       business_cards: s.calc_business_cards ? JSON.parse(s.calc_business_cards) : CALC_DEFAULTS.business_cards,

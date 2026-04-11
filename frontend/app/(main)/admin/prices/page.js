@@ -47,7 +47,7 @@ export default function PricesPage() {
   useEffect(() => {
     api.getCalcPrices()
       .then(p => setPrices(p))
-      .catch(() => {})
+      .catch(e => setError(`Ошибка загрузки цен: ${e.message}`))
       .finally(() => setLoading(false))
   }, [])
 
