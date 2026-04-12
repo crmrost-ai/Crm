@@ -27,6 +27,7 @@ function fmtSize(bytes) {
 export default function OrderDetailPage({ params }) {
   const router = useRouter()
   const user = getUser()
+  const PRODUCT_TYPE = useProductTypes()
   const [order, setOrder] = useState(null)
   const [contractors, setContractors] = useState([])
   const [loading, setLoading] = useState(true)
@@ -36,6 +37,8 @@ export default function OrderDetailPage({ params }) {
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [editSaving, setEditSaving] = useState(false)
+  const [editClientSearch, setEditClientSearch] = useState('')
+  const [editClients, setEditClients] = useState([])
 
   // Назначить цех
   const [assignModal, setAssignModal] = useState(false)
@@ -85,6 +88,16 @@ export default function OrderDetailPage({ params }) {
       .finally(() => setLoading(false))
   }, [params.id])
 
+  useEffect(() => {
+    if (!editMode) return
+    const timer = setTimeout(() => {
+      api.getClients({ search: editClientSearch, limit: 20 })
+        .then(d => setEditClients(d.clients || []))
+        .catch(console.error)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [editClientSearch, editMode])
+
   function initEdit(o) {
     setEditForm({
       title: o.title || '',
@@ -96,7 +109,10 @@ export default function OrderDetailPage({ params }) {
       deadline: o.deadline ? o.deadline.split('T')[0] : '',
       source: o.source || '',
       productType: o.productType || '',
+      clientId: o.clientId || '',
     })
+    setEditClientSearch('')
+    setEditClients([])
   }
 
   async function handleSaveEdit() {
@@ -224,7 +240,6 @@ export default function OrderDetailPage({ params }) {
   if (error && !order) return <div className="text-red-500 text-sm p-4">{error}</div>
   if (!order) return null
 
-  const PRODUCT_TYPE = useProductTypes()
   const isManager = user?.role === 'MANAGER' || user?.role === 'ADMIN'
   const isContractor = user?.role === 'CONTRACTOR'
 
@@ -372,6 +387,54 @@ export default function OrderDetailPage({ params }) {
                 <label className="label">Адрес доставки</label>
                 <AddressInput value={editForm.deliveryAddress}
                   onChange={v => setEditForm(f => ({ ...f, deliveryAddress: v }))} />
+              </div>
+
+              <div>
+                <label className="label">Клиент</label>
+                {editForm.clientId && editForm.clientId === order.clientId ? (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                    <span className="flex-1 font-medium text-gray-900">{order.client?.name}</span>
+                    <button type="button"
+                      className="text-xs text-blue-600 hover:underline"
+                      onClick={() => setEditForm(f => ({ ...f, clientId: '' }))}>
+                      Изменить
+                    </button>
+                  </div>
+                ) : editForm.clientId && editForm.clientId !== order.clientId ? (
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm">
+                    <span className="flex-1 font-medium text-blue-900">
+                      {editClients.find(c => c.id === editForm.clientId)?.name || 'Клиент выбран'}
+                    </span>
+                    <button type="button"
+                      className="text-xs text-gray-500 hover:underline"
+                      onClick={() => { setEditForm(f => ({ ...f, clientId: '' })); setEditClientSearch('') }}>
+                      Сбросить
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      className="input mb-2"
+                      placeholder="Поиск клиента по имени, телефону..."
+                      value={editClientSearch}
+                      onChange={e => setEditClientSearch(e.target.value)}
+                    />
+                    {editClients.length > 0 && (
+                      <div className="border border-gray-200 rounded-lg overflow-hidden max-h-44 overflow-y-auto">
+                        {editClients.map(c => (
+                          <button key={c.id} type="button"
+                            onClick={() => { setEditForm(f => ({ ...f, clientId: c.id })); setEditClientSearch(c.name) }}
+                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                            <div className="font-medium">{c.name}</div>
+                            <div className="text-xs text-gray-400">
+                              {[c.phone, c.inn ? `ИНН ${c.inn}` : null].filter(Boolean).join(' · ')}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div>

@@ -162,7 +162,7 @@ router.patch('/:id', async (req, res) => {
   const allowed = [
     'title', 'source', 'productType', 'params', 'description',
     'deadline', 'estimatedPrice', 'finalPrice', 'managerNote',
-    'deliveryAddress', 'files', 'contractorId',
+    'deliveryAddress', 'files', 'contractorId', 'clientId',
   ]
   const data = {}
   for (const key of allowed) {
@@ -177,6 +177,12 @@ router.patch('/:id', async (req, res) => {
     const contractor = await prisma.user.findUnique({ where: { id: data.contractorId } })
     if (!contractor || contractor.role !== 'CONTRACTOR')
       return res.status(400).json({ error: 'Подрядчик не найден' })
+  }
+
+  // Валидация clientId если передан
+  if (data.clientId) {
+    const client = await prisma.client.findUnique({ where: { id: data.clientId } })
+    if (!client) return res.status(400).json({ error: 'Клиент не найден' })
   }
 
   const updated = await prisma.order.update({
